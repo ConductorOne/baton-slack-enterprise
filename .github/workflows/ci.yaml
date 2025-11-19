@@ -1,0 +1,82 @@
+name: ci
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches:
+      - main
+jobs:
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run linters
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --timeout=3m
+  go-test:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        if: success()
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: go tests
+        run: go test -v -covermode=count -json ./... > test.json
+      - name: annotate go tests
+        if: always()
+        uses: guyarb/golang-test-annotations@v0.8.0
+        with:
+          test-results: test.json
+
+  test:
+    runs-on: ubuntu-latest
+    # Define any services needed for the test suite (or delete this section)
+    # services:
+    #   postgres:
+    #     image: postgres:16
+    #     ports:
+    #       - "5432:5432"
+    #     env:
+    #       POSTGRES_PASSWORD: secretpassword
+    env:
+      BATON_LOG_LEVEL: debug
+      # Add any environment variables needed to run baton-slack-enterprise
+      # BATON_BASE_URL: 'http://localhost:8080'
+      # BATON_ACCESS_TOKEN: 'secret_token'
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Checkout code
+        uses: actions/checkout@v4
+      # Install any dependencies here (or delete this)
+      # - name: Install postgres client
+      #   run: sudo apt install postgresql-client
+      # Run any fixture setup here (or delete this)
+      # - name: Import sql into postgres
+      #   run: psql -h localhost --user postgres -f environment.sql
+      #   env:
+      #     PGPASSWORD: secretpassword
+      - name: Build baton-slack-enterprise
+        run: go build ./cmd/baton-slack-enterprise
+      - name: Test syncing
+        uses: ConductorOne/github-workflows/actions/sync-test@v2
+        with:
+          connector: ./baton-slack-enterprise
+          baton-entitlement: 'entitlement:group:1234:member'
+          baton-principal: 'user:9876'
+          baton-principal-type: 'user'
