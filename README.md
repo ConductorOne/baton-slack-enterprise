@@ -41,6 +41,7 @@ baton resources
 
 `baton-slack-enterprise` will pull down information about the following resources:
 - Users
+- Workspaces
 
 `baton-slack-enterprise` does not specify supporting account provisioning or entitlement provisioning.
 
