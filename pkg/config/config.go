@@ -1,23 +1,63 @@
 package config
 
+//go:generate go run ./gen
+
 import (
 	"github.com/conductorone/baton-sdk/pkg/field"
 )
 
 var (
-	// Add the SchemaFields for the Config.
-	configField         = field.StringField("configField")
-	ConfigurationFields = []field.SchemaField{configField}
+	AccessTokenField = field.StringField(
+		"token",
+		field.WithDisplayName("Access Token"),
+		field.WithDescription("The Slack bot user oauth token used to connect to the Slack API"),
+		field.WithRequired(true),
+		field.WithIsSecret(true),
+	)
+	EnterpriseTokenField = field.StringField(
+		"enterprise-token",
+		field.WithDisplayName("Enterprise Token"),
+		field.WithDescription("The Slack user oauth token used to connect to the Slack Enterprise Grid Admin API"),
+		field.WithIsSecret(true),
+	)
+	SSOEnabledField = field.BoolField(
+		"sso-enabled",
+		field.WithDisplayName("SSO Enabled"),
+		field.WithDescription("Flag indicating that the SSO has been configured for Enterprise Grid Organization. Enables usage of SCIM API"),
+		field.WithDefaultValue(false),
+	)
+	GovEnvironmentField = field.BoolField(
+		"gov-env",
+		field.WithDisplayName("Gov Environment"),
+		field.WithDescription("Flag indicating to use Slack-Gov environment."),
+		field.WithDefaultValue(false),
+	)
 
-	// FieldRelationships defines relationships between the ConfigurationFields that can be automatically validated.
-	// For example, a username and password can be required together, or an access token can be
-	// marked as mutually exclusive from the username password pair.
-	FieldRelationships = []field.SchemaFieldRelationship{}
-)
+	// ConfigurationFields defines the external configuration required for the
+	// connector to run. Note: these fields can be marked as optional or
+	// required.
+	ConfigurationFields = []field.SchemaField{
+		AccessTokenField,
+		EnterpriseTokenField,
+		SSOEnabledField,
+		GovEnvironmentField,
+	}
 
-//go:generate go run -tags=generate ./gen
-var Config = field.NewConfiguration(
-	ConfigurationFields,
-	field.WithConstraints(FieldRelationships...),
-	field.WithConnectorDisplayName("Slack Enterprise"),
+	// FieldRelationships defines relationships between the fields listed in
+	// ConfigurationFields that can be automatically validated.
+	// Every Gov Slack instance is an Enterprise Grid instance.
+	FieldRelationships = []field.SchemaFieldRelationship{
+		field.FieldsDependentOn(
+			[]field.SchemaField{GovEnvironmentField},
+			[]field.SchemaField{EnterpriseTokenField},
+		),
+	}
+
+	Configuration = field.NewConfiguration(
+		ConfigurationFields,
+		field.WithConnectorDisplayName("Slack"),
+		field.WithHelpUrl("/docs/baton/slack"),
+		field.WithIconUrl("/static/app-icons/slack.svg"),
+		field.WithConstraints(FieldRelationships...),
+	)
 )

@@ -4,7 +4,10 @@ package config
 import "reflect" 
 
 type SlackEnterprise struct {
-	Configfield string `mapstructure:"configField"`
+	Token string `mapstructure:"token"`
+	EnterpriseToken string `mapstructure:"enterprise-token"`
+	SsoEnabled bool `mapstructure:"sso-enabled"`
+	GovEnv bool `mapstructure:"gov-env"`
 }
 
 func (c *SlackEnterprise) findFieldByTag(tagValue string) (any, bool) {

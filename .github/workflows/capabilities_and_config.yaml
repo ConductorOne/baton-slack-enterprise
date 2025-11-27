@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  calculate-capabilities:
+  generate_outputs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
@@ -22,13 +22,13 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Build
-        run: go build -o connector ./cmd/baton-slack-enterprise
+        run: go build -o connector ./cm./baton-slack-enterprise-enterprise
 
       - name: Run and save config output
         run: ./connector config > config_schema.json
 
       - name: Run and save capabilities output
-        run: ./connector capabilities > baton_capabilities.json
+        run: ./connector capabilities --token "${{ secrets.BATON_TOKEN }}" --enterprise-token "${{ secrets.BATON_ENTERPRISE_TOKEN}}" > baton_capabilities.json
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9
