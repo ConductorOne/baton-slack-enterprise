@@ -31,7 +31,7 @@ func TestValidateConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := field.Validate(Config, tt.config)
+			err := field.Validate(Configuration, tt.config)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

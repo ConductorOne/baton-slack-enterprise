@@ -141,67 +141,6 @@ func userResource(
 	)
 }
 
-// baseUserResource Create a new connector resource for a base Slack user. Admin
-// API doesn't return the same values as the user API. We need to create a base
-// resource for users without workspace that are fetched by the Admin API.
-func baseUserResource(
-	_ context.Context,
-	user enterprise.UserAdmin,
-	_ *v2.ResourceId,
-) (*v2.Resource, error) {
-	firstname, lastname := resource.SplitFullName(user.FullName)
-	profile := make(map[string]interface{})
-	profile["first_name"] = firstname
-	profile["last_name"] = lastname
-	profile["login"] = user.Email
-	profile["user_id"] = user.ID
-	profile["sso_user"] = user.HasSso
-
-	var userStatus v2.UserTrait_Status_Status
-	if user.IsActive {
-		userStatus = v2.UserTrait_Status_STATUS_ENABLED
-	} else {
-		userStatus = v2.UserTrait_Status_STATUS_DISABLED
-	}
-
-	ssoStatus := &v2.UserTrait_SSOStatus{SsoEnabled: false}
-	if user.HasSso {
-		ssoStatus = &v2.UserTrait_SSOStatus{SsoEnabled: true}
-	}
-
-	userTraitOptions := []resource.UserTraitOption{
-		resource.WithUserProfile(profile),
-		resource.WithEmail(user.Email, true),
-		resource.WithStatus(userStatus),
-		resource.WithUserLogin(user.Username),
-		resource.WithSSOStatus(ssoStatus),
-	}
-
-	if user.IsBot {
-		userTraitOptions = append(
-			userTraitOptions,
-			resource.WithAccountType(v2.UserTrait_ACCOUNT_TYPE_SERVICE),
-		)
-	}
-
-	// If the credentials we're hitting the API with don't have admin, this can
-	// be false even if the user has mfa enabled.
-	// See https://api.slack.com/types/user for more info
-	if user.Has2Fa {
-		userTraitOptions = append(
-			userTraitOptions,
-			resource.WithMFAStatus(&v2.UserTrait_MFAStatus{MfaEnabled: true}),
-		)
-	}
-
-	return resource.NewUserResource(
-		user.FullName,
-		resourceTypeUser,
-		user.ID,
-		userTraitOptions,
-	)
-}
-
 func (o *userResourceType) Entitlements(
 	_ context.Context,
 	_ *v2.Resource,
