@@ -16,10 +16,10 @@ func logBody(ctx context.Context, response *http.Response) {
 	}
 	bodyCloser := response.Body
 	body := make([]byte, 512)
-	_, err := bodyCloser.Read(body)
+	n, err := bodyCloser.Read(body)
 	if err != nil {
 		l.Error("error reading response body", zap.Error(err))
 		return
 	}
-	l.Info("response body: ", zap.String("body", string(body)))
+	l.Info("response body: ", zap.String("body", string(body[:n])))
 }

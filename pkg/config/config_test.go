@@ -14,17 +14,16 @@ func TestValidateConfig(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "valid config",
+			name: "valid config",
 			config: &SlackEnterprise{
-				// TODO: Add minimal valid configuration here once Config type is generated
+				Token:           "xoxb-test-token",
+				EnterpriseToken: "xoxp-test-enterprise-token",
 			},
 			wantErr: false,
 		},
 		{
-			name:   "invalid config - missing required fields",
-			config: &SlackEnterprise{
-				// TODO: Add configuration with missing required fields once Config type is generated
-			},
+			name:    "invalid config - missing required fields",
+			config:  &SlackEnterprise{},
 			wantErr: true,
 		},
 	}
