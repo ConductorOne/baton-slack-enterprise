@@ -27,7 +27,6 @@ type groupResourceType struct {
 	resourceType     *v2.ResourceType
 	enterpriseID     string
 	enterpriseClient *enterprise.Client
-	ssoEnabled       bool
 	govEnv           bool
 }
 
@@ -35,12 +34,11 @@ func (g *groupResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 	return g.resourceType
 }
 
-func groupBuilder(enterpriseClient *enterprise.Client, enterpriseID string, ssoEnabled bool, govEnv bool) *groupResourceType {
+func groupBuilder(enterpriseClient *enterprise.Client, enterpriseID string, govEnv bool) *groupResourceType {
 	return &groupResourceType{
 		resourceType:     resourceTypeGroup,
 		enterpriseID:     enterpriseID,
 		enterpriseClient: enterpriseClient,
-		ssoEnabled:       ssoEnabled,
 		govEnv:           govEnv,
 	}
 }
@@ -106,10 +104,6 @@ func (g *groupResourceType) List(
 	*resources.SyncOpResults,
 	error,
 ) {
-	if !g.ssoEnabled {
-		return nil, &resources.SyncOpResults{}, nil
-	}
-
 	offset, limit, err := parsePaginationToken(attrs.PageToken.Token, attrs.PageToken.Size)
 	if err != nil {
 		return nil, nil, err

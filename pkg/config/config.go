@@ -18,13 +18,8 @@ var (
 		"enterprise-token",
 		field.WithDisplayName("Enterprise Token"),
 		field.WithDescription("The Slack user oauth token used to connect to the Slack Enterprise Grid Admin API"),
+		field.WithRequired(true),
 		field.WithIsSecret(true),
-	)
-	SSOEnabledField = field.BoolField(
-		"sso-enabled",
-		field.WithDisplayName("SSO Enabled"),
-		field.WithDescription("Flag indicating that the SSO has been configured for Enterprise Grid Organization. Enables usage of SCIM API"),
-		field.WithDefaultValue(false),
 	)
 	GovEnvironmentField = field.BoolField(
 		"gov-env",
@@ -39,7 +34,6 @@ var (
 	ConfigurationFields = []field.SchemaField{
 		AccessTokenField,
 		EnterpriseTokenField,
-		SSOEnabledField,
 		GovEnvironmentField,
 	}
 

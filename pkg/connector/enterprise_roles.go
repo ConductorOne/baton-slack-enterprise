@@ -118,10 +118,6 @@ func (o *enterpriseRoleType) List(
 	error,
 ) {
 	var ret []*v2.Resource
-	// There is no need to sync roles if we don't have an enterprise plan.
-	if o.enterpriseID == "" {
-		return nil, &resources.SyncOpResults{}, nil
-	}
 
 	bag, err := pkg.ParseRolesPageToken(attrs.PageToken.Token)
 	if err != nil {

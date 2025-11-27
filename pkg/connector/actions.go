@@ -114,12 +114,6 @@ func (s *Slack) RegisterActionManager(ctx context.Context) (connectorbuilder.Cus
 	l := ctxzap.Extract(ctx)
 	actionManager := actions.NewActionManager(ctx)
 
-	// Only register enable/disable actions if enterprise client is available (SCIM API access)
-	if s.enterpriseClient == nil || !s.ssoEnabled {
-		l.Info("skipping Slack SCIM actions registration; enterprise client not available or SSO not enabled")
-		return actionManager, nil
-	}
-
 	l.Info("registering Slack SCIM actions")
 	err := actionManager.RegisterAction(ctx, ActionDisableUser, disableUserSchema, s.handleDisableUser)
 	if err != nil {
@@ -156,15 +150,6 @@ func (s *Slack) handleDisableUser(
 	}
 
 	l.Debug("disabling user via SCIM", zap.String("user_id", userID))
-
-	if s.enterpriseClient == nil {
-		return &structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"success": {Kind: &structpb.Value_BoolValue{BoolValue: false}},
-				"message": {Kind: &structpb.Value_StringValue{StringValue: "Enterprise client not available - SCIM API requires Enterprise Grid"}},
-			},
-		}, nil, fmt.Errorf("enterprise client not available - SCIM API requires Enterprise Grid")
-	}
 
 	ratelimitData, err := s.enterpriseClient.DisableUser(ctx, userID)
 	if err != nil {
@@ -211,15 +196,6 @@ func (s *Slack) handleEnableUser(
 	}
 
 	l.Debug("enabling user via SCIM", zap.String("user_id", userID))
-
-	if s.enterpriseClient == nil {
-		return &structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"success": {Kind: &structpb.Value_BoolValue{BoolValue: false}},
-				"message": {Kind: &structpb.Value_StringValue{StringValue: "Enterprise client not available - SCIM API requires Enterprise Grid"}},
-			},
-		}, nil, fmt.Errorf("enterprise client not available - SCIM API requires Enterprise Grid")
-	}
 
 	ratelimitData, err := s.enterpriseClient.EnableUser(ctx, userID)
 	if err != nil {

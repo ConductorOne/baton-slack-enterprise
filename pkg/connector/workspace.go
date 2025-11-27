@@ -90,18 +90,11 @@ func (o *workspaceResourceType) List(
 		ratelimitData *v2.RateLimitDescription
 	)
 	outputAnnotations := annotations.New()
-	if o.enterpriseID != "" {
-		workspaces, nextCursor, ratelimitData, err = o.enterpriseClient.GetAuthTeamsList(ctx, bag.PageToken())
-		outputAnnotations.WithRateLimiting(ratelimitData)
-		if err != nil {
-			return nil, &resources.SyncOpResults{Annotations: outputAnnotations}, err
-		}
-	} else {
-		params := slack.ListTeamsParameters{Cursor: bag.PageToken()}
-		workspaces, nextCursor, err = o.client.ListTeamsContext(ctx, params)
-		if err != nil {
-			return nil, nil, err
-		}
+
+	workspaces, nextCursor, ratelimitData, err = o.enterpriseClient.GetAuthTeamsList(ctx, bag.PageToken())
+	outputAnnotations.WithRateLimiting(ratelimitData)
+	if err != nil {
+		return nil, &resources.SyncOpResults{Annotations: outputAnnotations}, err
 	}
 
 	pageToken, err := bag.NextToken(nextCursor)
@@ -256,28 +249,26 @@ func (o *workspaceResourceType) Grants(
 			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 		}
 
-		if o.enterpriseID != "" {
-			if user.Enterprise.IsPrimaryOwner {
-				rr, err := enterpriseRoleResource(ctx, OrganizationPrimaryOwnerID, resource.Id)
-				if err != nil {
-					return nil, nil, err
-				}
-				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+		if user.Enterprise.IsPrimaryOwner {
+			rr, err := enterpriseRoleResource(ctx, OrganizationPrimaryOwnerID, resource.Id)
+			if err != nil {
+				return nil, nil, err
 			}
-			if user.Enterprise.IsOwner {
-				rr, err := enterpriseRoleResource(ctx, OrganizationOwnerID, resource.Id)
-				if err != nil {
-					return nil, nil, err
-				}
-				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+		}
+		if user.Enterprise.IsOwner {
+			rr, err := enterpriseRoleResource(ctx, OrganizationOwnerID, resource.Id)
+			if err != nil {
+				return nil, nil, err
 			}
-			if user.Enterprise.IsAdmin {
-				rr, err := enterpriseRoleResource(ctx, OrganizationAdminID, resource.Id)
-				if err != nil {
-					return nil, nil, err
-				}
-				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+		}
+		if user.Enterprise.IsAdmin {
+			rr, err := enterpriseRoleResource(ctx, OrganizationAdminID, resource.Id)
+			if err != nil {
+				return nil, nil, err
 			}
+			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 		}
 
 		// confused about Workspace vs Workspace Role? check this link:
@@ -295,10 +286,6 @@ func (o *workspaceResourceType) Grant(
 	principal *v2.Resource,
 	entitlement *v2.Entitlement,
 ) (annotations.Annotations, error) {
-	if o.enterpriseID == "" {
-		return nil, uhttp.WrapErrors(codes.InvalidArgument, "enterprise ID and enterprise token are both required", errors.New("missing enterprise configuration"))
-	}
-
 	logger := ctxzap.Extract(ctx)
 
 	if principal.Id.ResourceType != resourceTypeUser.Id {
@@ -340,10 +327,6 @@ func (o *workspaceResourceType) Revoke(
 	annotations.Annotations,
 	error,
 ) {
-	if o.enterpriseID == "" {
-		return nil, uhttp.WrapErrors(codes.InvalidArgument, "enterprise ID and enterprise token are both required to revoke grants", errors.New("missing enterprise configuration"))
-	}
-
 	logger := ctxzap.Extract(ctx)
 
 	principal := grant.Principal

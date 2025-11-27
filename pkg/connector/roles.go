@@ -229,10 +229,6 @@ func (o *workspaceRoleType) Revoke(
 	annotations.Annotations,
 	error,
 ) {
-	if o.enterpriseID == "" {
-		return nil, uhttp.WrapErrors(codes.InvalidArgument, "enterprise ID and token are both required for workspace role revocation", errors.New("missing enterprise configuration"))
-	}
-
 	logger := ctxzap.Extract(ctx)
 
 	principal := grant.Principal
