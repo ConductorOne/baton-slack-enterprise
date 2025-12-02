@@ -23,7 +23,6 @@ type Slack struct {
 	apiKey           string
 	enterpriseClient *enterprise.Client
 	enterpriseID     string
-	ssoEnabled       bool
 	govEnv           bool
 }
 
@@ -104,7 +103,7 @@ func (s *slackLogger) Output(callDepth int, msg string) error {
 	return nil
 }
 
-func NewSlack(ctx context.Context, apiKey, enterpriseKey string, ssoEnabled bool, govEnv bool) (*Slack, error) {
+func NewSlack(ctx context.Context, apiKey, enterpriseKey string, govEnv bool) (*Slack, error) {
 	l := ctxzap.Extract(ctx)
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, l))
 	if err != nil {
@@ -127,23 +126,28 @@ func NewSlack(ctx context.Context, apiKey, enterpriseKey string, ssoEnabled bool
 		return nil, pkg.WrapSlackClientError(err, "authenticating during initialization")
 	}
 
-	var enterpriseId string
-	if res.EnterpriseID != "" {
-		enterpriseId = res.EnterpriseID
-		if enterpriseKey == "" {
-			return nil, uhttp.WrapErrors(
-				codes.InvalidArgument,
-				"enterprise account detected, but no enterprise token specified",
-				fmt.Errorf("missing enterprise token"),
-			)
-		}
+	if res.EnterpriseID == "" {
+		return nil, uhttp.WrapErrors(
+			codes.InvalidArgument,
+			"baton-slack-enterprise requires a Slack Enterprise Grid account",
+			fmt.Errorf("not an enterprise account"),
+		)
 	}
+
+	if enterpriseKey == "" {
+		return nil, uhttp.WrapErrors(
+			codes.InvalidArgument,
+			"enterprise token is required for baton-slack-enterprise",
+			fmt.Errorf("missing enterprise token"),
+		)
+	}
+
+	enterpriseId := res.EnterpriseID
 	enterpriseClient, err := enterprise.NewClient(
 		httpClient,
 		enterpriseKey,
 		apiKey,
 		res.EnterpriseID,
-		ssoEnabled,
 		govEnv,
 	)
 	if err != nil {
@@ -154,7 +158,6 @@ func NewSlack(ctx context.Context, apiKey, enterpriseKey string, ssoEnabled bool
 		apiKey:           apiKey,
 		enterpriseClient: enterpriseClient,
 		enterpriseID:     enterpriseId,
-		ssoEnabled:       ssoEnabled,
 		govEnv:           govEnv,
 	}, nil
 }
@@ -164,7 +167,6 @@ func New(ctx context.Context, config *cfg.SlackEnterprise, opts *cli.ConnectorOp
 		ctx,
 		config.Token,
 		config.EnterpriseToken,
-		config.SsoEnabled,
 		config.GovEnv,
 	)
 	if err != nil {
@@ -177,11 +179,11 @@ func New(ctx context.Context, config *cfg.SlackEnterprise, opts *cli.ConnectorOp
 
 func (s *Slack) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncerV2 {
 	return []connectorbuilder.ResourceSyncerV2{
-		userBuilder(s.client, s.enterpriseID, s.enterpriseClient, s.ssoEnabled),
+		userBuilder(s.client, s.enterpriseID, s.enterpriseClient),
 		workspaceBuilder(s.client, s.enterpriseID, s.enterpriseClient),
 		userGroupBuilder(s.client, s.enterpriseID, s.enterpriseClient),
 		workspaceRoleBuilder(s.client, s.enterpriseID, s.enterpriseClient),
 		enterpriseRoleBuilder(s.enterpriseID, s.enterpriseClient),
-		groupBuilder(s.enterpriseClient, s.enterpriseID, s.ssoEnabled, s.govEnv),
+		groupBuilder(s.enterpriseClient, s.enterpriseID, s.govEnv),
 	}
 }

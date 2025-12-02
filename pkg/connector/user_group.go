@@ -83,25 +83,10 @@ func (o *userGroupResourceType) List(
 	outputAnnotations := annotations.New()
 	// We use different method here because we need to pass a teamID, but it's
 	// not supported by the slack-go library.
-	if o.enterpriseID != "" {
-		userGroups, ratelimitData, err = o.enterpriseClient.GetUserGroups(ctx, parentResourceID.Resource)
-		outputAnnotations.WithRateLimiting(ratelimitData)
-		if err != nil {
-			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, err
-		}
-	} else {
-		opts := []slack.GetUserGroupsOption{
-			slack.GetUserGroupsOptionIncludeUsers(true),
-			// We need to add a way to signify disabled resources in baton in
-			// order to include disabled groups. We should also be doing this
-			// for both enterprise and non-enterprise groups.
-			// slack.GetUserGroupsOptionIncludeDisabled(true),
-		}
-		userGroups, err = o.client.GetUserGroupsContext(ctx, opts...)
-		if err != nil {
-			annos, err := pkg.AnnotationsForError(err)
-			return nil, &resource.SyncOpResults{Annotations: annos}, err
-		}
+	userGroups, ratelimitData, err = o.enterpriseClient.GetUserGroups(ctx, parentResourceID.Resource)
+	outputAnnotations.WithRateLimiting(ratelimitData)
+	if err != nil {
+		return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, err
 	}
 
 	output, err := pkg.MakeResourceList(

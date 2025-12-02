@@ -2,7 +2,6 @@ package connector
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
-	"github.com/conductorone/baton-slack-enterprise/pkg"
 	enterprise "github.com/conductorone/baton-slack-enterprise/pkg/connector/client"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/slack-go/slack"
@@ -23,7 +21,6 @@ type userResourceType struct {
 	client           *slack.Client
 	enterpriseID     string
 	enterpriseClient *enterprise.Client
-	ssoEnabled       bool
 }
 
 func (o *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
@@ -144,67 +141,6 @@ func userResource(
 	)
 }
 
-// baseUserResource Create a new connector resource for a base Slack user. Admin
-// API doesn't return the same values as the user API. We need to create a base
-// resource for users without workspace that are fetched by the Admin API.
-func baseUserResource(
-	_ context.Context,
-	user enterprise.UserAdmin,
-	_ *v2.ResourceId,
-) (*v2.Resource, error) {
-	firstname, lastname := resource.SplitFullName(user.FullName)
-	profile := make(map[string]interface{})
-	profile["first_name"] = firstname
-	profile["last_name"] = lastname
-	profile["login"] = user.Email
-	profile["user_id"] = user.ID
-	profile["sso_user"] = user.HasSso
-
-	var userStatus v2.UserTrait_Status_Status
-	if user.IsActive {
-		userStatus = v2.UserTrait_Status_STATUS_ENABLED
-	} else {
-		userStatus = v2.UserTrait_Status_STATUS_DISABLED
-	}
-
-	ssoStatus := &v2.UserTrait_SSOStatus{SsoEnabled: false}
-	if user.HasSso {
-		ssoStatus = &v2.UserTrait_SSOStatus{SsoEnabled: true}
-	}
-
-	userTraitOptions := []resource.UserTraitOption{
-		resource.WithUserProfile(profile),
-		resource.WithEmail(user.Email, true),
-		resource.WithStatus(userStatus),
-		resource.WithUserLogin(user.Username),
-		resource.WithSSOStatus(ssoStatus),
-	}
-
-	if user.IsBot {
-		userTraitOptions = append(
-			userTraitOptions,
-			resource.WithAccountType(v2.UserTrait_ACCOUNT_TYPE_SERVICE),
-		)
-	}
-
-	// If the credentials we're hitting the API with don't have admin, this can
-	// be false even if the user has mfa enabled.
-	// See https://api.slack.com/types/user for more info
-	if user.Has2Fa {
-		userTraitOptions = append(
-			userTraitOptions,
-			resource.WithMFAStatus(&v2.UserTrait_MFAStatus{MfaEnabled: true}),
-		)
-	}
-
-	return resource.NewUserResource(
-		user.FullName,
-		resourceTypeUser,
-		user.ID,
-		userTraitOptions,
-	)
-}
-
 func (o *userResourceType) Entitlements(
 	_ context.Context,
 	_ *v2.Resource,
@@ -238,16 +174,10 @@ func (o *userResourceType) List(
 	*resource.SyncOpResults,
 	error,
 ) {
-	if o.enterpriseClient != nil && o.ssoEnabled {
-		return o.listScimAPI(ctx, parentResourceID, attrs)
-	}
-	return o.listUsers(ctx, parentResourceID, attrs)
+	return o.listScimAPI(ctx, parentResourceID, attrs)
 }
 
 func (o *userResourceType) listScimAPI(ctx context.Context, parentResourceID *v2.ResourceId, attrs resource.SyncOpAttrs) ([]*v2.Resource, *resource.SyncOpResults, error) {
-	if o.enterpriseClient == nil {
-		return nil, nil, fmt.Errorf("baton-slack: SCIM API requires enterprise client")
-	}
 	l := ctxzap.Extract(ctx)
 	l.Debug("Listing Slack users using SCIM API")
 
@@ -284,80 +214,6 @@ func (o *userResourceType) listScimAPI(ctx context.Context, parentResourceID *v2
 	return rv, &resource.SyncOpResults{NextPageToken: nextPageToken, Annotations: annos}, nil
 }
 
-func (o *userResourceType) listUsers(ctx context.Context, parentResourceID *v2.ResourceId, attrs resource.SyncOpAttrs) ([]*v2.Resource, *resource.SyncOpResults, error) {
-	if parentResourceID == nil {
-		return nil, &resource.SyncOpResults{}, nil
-	}
-
-	l := ctxzap.Extract(ctx)
-	l.Debug("Listing Slack users using standard API")
-
-	var (
-		allUsers      []enterprise.UserAdmin
-		pageToken     string
-		nextCursor    string
-		ratelimitData *v2.RateLimitDescription
-	)
-	outputAnnotations := annotations.New()
-	if o.enterpriseID != "" {
-		bag, err := pkg.ParsePageToken(attrs.PageToken.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse page token: %w", err)
-		}
-
-		// We need to fetch all users because users without workspace won't be
-		// fetched by GetUsersContext.
-		allUsers, nextCursor, ratelimitData, err = o.enterpriseClient.GetUsersAdmin(ctx, bag.PageToken())
-		outputAnnotations.WithRateLimiting(ratelimitData)
-		if err != nil {
-			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, err
-		}
-		pageToken, err = bag.NextToken(nextCursor)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	options := slack.GetUsersOptionTeamID(parentResourceID.Resource)
-	users, err := o.client.GetUsersContext(ctx, options)
-	if err != nil {
-		annos, err := pkg.AnnotationsForError(err)
-		return nil, &resource.SyncOpResults{Annotations: annos}, err
-	}
-
-	// Create a base resource if user has no workspace.
-	rv0, err := pkg.MakeResourceList(
-		ctx,
-		allUsers,
-		nil,
-		baseUserResource,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Users without workspace won't be part of users array.
-	rv1, err := pkg.MakeResourceList(
-		ctx,
-		users,
-		parentResourceID,
-		func(
-			ctx context.Context,
-			object slack.User,
-			parentResourceID *v2.ResourceId,
-		) (
-			*v2.Resource,
-			error,
-		) {
-			return userResource(ctx, &object, parentResourceID)
-		},
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	return append(rv0, rv1...), &resource.SyncOpResults{NextPageToken: pageToken, Annotations: outputAnnotations}, nil
-}
-
 func (o *userResourceType) CreateAccount(
 	ctx context.Context,
 	accountInfo *v2.AccountInfo,
@@ -371,10 +227,6 @@ func (o *userResourceType) CreateAccount(
 	params, err := getInviteUserParams(accountInfo)
 	if err != nil {
 		return nil, nil, nil, uhttp.WrapErrors(codes.InvalidArgument, "failed to get invite user params for account creation", err)
-	}
-
-	if o.enterpriseClient == nil {
-		return nil, nil, nil, uhttp.WrapErrors(codes.InvalidArgument, "account provisioning requires Slack enterprise client", errors.New("enterprise client not configured"))
 	}
 
 	ratelimitData, err := o.enterpriseClient.InviteUserToWorkspace(ctx, params)
@@ -441,13 +293,11 @@ func userBuilder(
 	client *slack.Client,
 	enterpriseID string,
 	enterpriseClient *enterprise.Client,
-	ssoEnabled bool,
 ) *userResourceType {
 	return &userResourceType{
 		resourceType:     resourceTypeUser,
 		client:           client,
 		enterpriseID:     enterpriseID,
 		enterpriseClient: enterpriseClient,
-		ssoEnabled:       ssoEnabled,
 	}
 }

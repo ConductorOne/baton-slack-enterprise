@@ -202,19 +202,22 @@ func (c *Client) doRequest(
 		uhttp.WithRatelimitData(&ratelimitData),
 	)
 	if err != nil {
-		logBody(ctx, response)
+		if response != nil && response.Body != nil {
+			bodyBytes, _ := io.ReadAll(response.Body)
+			logger.Error("request failed", zap.String("body", logBody(bodyBytes, 2048)))
+		}
 		return &ratelimitData, err
 	}
 	defer response.Body.Close()
 
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		logBody(ctx, response)
+		logger.Error("failed to read response body", zap.String("body", logBody(bodyBytes, 2048)))
 		return &ratelimitData, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if err := json.Unmarshal(bodyBytes, &target); err != nil {
-		logBody(ctx, response)
+		logger.Error("failed to unmarshal response", zap.String("body", logBody(bodyBytes, 2048)))
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
@@ -252,7 +255,10 @@ func (c *Client) deleteScim(
 		uhttp.WithRatelimitData(&ratelimitData),
 	)
 	if err != nil {
-		logBody(ctx, response)
+		if response != nil && response.Body != nil {
+			bodyBytes, _ := io.ReadAll(response.Body)
+			logger.Error("SCIM delete request failed", zap.String("body", logBody(bodyBytes, 2048)))
+		}
 		return &ratelimitData, err
 	}
 	defer response.Body.Close()
@@ -263,7 +269,7 @@ func (c *Client) deleteScim(
 
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		logBody(ctx, response)
+		logger.Error("failed to read SCIM error response body", zap.String("body", logBody(bodyBytes, 2048)))
 		return &ratelimitData, fmt.Errorf("failed to read SCIM error response body: %w", err)
 	}
 

@@ -35,7 +35,6 @@ type Client struct {
 	token        string
 	enterpriseID string
 	botToken     string
-	ssoEnabled   bool
 	scimVersion  string
 	wrapper      *uhttp.BaseHttpClient
 }
@@ -45,7 +44,6 @@ func NewClient(
 	token string,
 	botToken string,
 	enterpriseID string,
-	ssoEnabled bool,
 	govEnv bool,
 ) (*Client, error) {
 	finalBaseUrl := baseUrl
@@ -73,7 +71,6 @@ func NewClient(
 		token:        token,
 		enterpriseID: enterpriseID,
 		botToken:     botToken,
-		ssoEnabled:   ssoEnabled,
 		scimVersion:  finalScimVersion,
 		wrapper:      uhttp.NewBaseHttpClient(httpClient),
 	}, nil
