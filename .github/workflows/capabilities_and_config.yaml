@@ -22,7 +22,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Build
-        run: go build -o connector ./cm./baton-slack-enterprise
+        run: go build -o connector ./cmd/baton-slack-enterprise
 
       - name: Run and save config output
         run: ./connector config > config_schema.json
