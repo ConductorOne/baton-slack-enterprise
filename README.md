@@ -83,12 +83,6 @@ baton resources
 Enterprise grid additional resources:
 - Enterprise roles
 
-With SSO configured (enterprise grid):
-- IDP groups
-
-If you have SSO configured for your enterprise grid organization you can also 
-sync IDP groups and provision them. Just pass the `--sso-enabled=true` flag.
-
 # Contributing, Support, and Issues
 
 We started Baton because we were tired of taking screenshots and manually 
@@ -110,23 +104,31 @@ Usage:
 Available Commands:
   capabilities       Get connector capabilities
   completion         Generate the autocompletion script for the specified shell
+  config             Get the connector config schema
   help               Help about any command
 
 Flags:
-      --client-id string          The client ID used to authenticate with ConductorOne ($BATON_CLIENT_ID)
-      --client-secret string      The client secret used to authenticate with ConductorOne ($BATON_CLIENT_SECRET)
-      --enterprise-token string   The Slack user oauth token used to connect to the Slack Enterprise Grid Admin API ($BATON_ENTERPRISE_TOKEN)
-  -f, --file string               The path to the c1z file to sync with ($BATON_FILE) (default "sync.c1z")
-  -h, --help                      help for baton-slack-enterprise
-      --log-format string         The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
-      --log-level string          The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
-  -p, --provisioning              This must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
-      --skip-full-sync            This must be set to skip a full sync ($BATON_SKIP_FULL_SYNC)
-      --sso-enabled               Flag indicating that the SSO has been configured for Enterprise Grid Organization. Enables usage of SCIM API ($BATON_SSO_ENABLED)
-      --gov-env                   Flag indicating that is a GovSlack instance. ($BATON_GOV_ENV)
-      --ticketing                 This must be set to enable ticketing support ($BATON_TICKETING)
-      --token string              required: The Slack bot user oauth token used to connect to the Slack API ($BATON_TOKEN)
-  -v, --version                   version for baton-slack-enterprise
+      --auth-method string                               ($BATON_AUTH_METHOD)
+      --client-id string                                 The client ID used to authenticate with ConductorOne ($BATON_CLIENT_ID)
+      --client-secret string                             The client secret used to authenticate with ConductorOne ($BATON_CLIENT_SECRET)
+      --enterprise-token string                          required: The Slack user oauth token used to connect to the Slack Enterprise Grid Admin API ($BATON_ENTERPRISE_TOKEN)
+      --external-resource-c1z string                     The path to the c1z file to sync external baton resources with ($BATON_EXTERNAL_RESOURCE_C1Z)
+      --external-resource-entitlement-id-filter string   The entitlement that external users, groups must have access to sync external baton resources ($BATON_EXTERNAL_RESOURCE_ENTITLEMENT_ID_FILTER)
+  -f, --file string                                      The path to the c1z file to sync with ($BATON_FILE) (default "sync.c1z")
+      --gov-env                                          Flag indicating to use Slack-Gov environment. ($BATON_GOV_ENV)
+  -h, --help                                             help for baton-slack-enterprise
+      --log-format string                                The output format for logs: json, console ($BATON_LOG_FORMAT) (default "console")
+      --log-level string                                 The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
+      --log-level-debug-expires-at string                The timestamp indicating when debug-level logging should expire ($BATON_LOG_LEVEL_DEBUG_EXPIRES_AT)
+      --otel-collector-endpoint string                   The endpoint of the OpenTelemetry collector to send observability data to (used for both tracing and logging if specific endpoints are not provided) ($BATON_OTEL_COLLECTOR_ENDPOINT)
+  -p, --provisioning                                     This must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
+      --skip-entitlements-and-grants                     This must be set to skip syncing of entitlements and grants ($BATON_SKIP_ENTITLEMENTS_AND_GRANTS)
+      --skip-full-sync                                   This must be set to skip a full sync ($BATON_SKIP_FULL_SYNC)
+      --sync-resource-types strings                      The resource type IDs to sync ($BATON_SYNC_RESOURCE_TYPES)
+      --sync-resources strings                           The resource IDs to sync ($BATON_SYNC_RESOURCES)
+      --ticketing                                        This must be set to enable ticketing support ($BATON_TICKETING)
+      --token string                                     required: The Slack bot user oauth token used to connect to the Slack API ($BATON_TOKEN)
+  -v, --version                                          version for baton-slack-enterprise
 
 Use "baton-slack-enterprise [command] --help" for more information about a command.
 ```
