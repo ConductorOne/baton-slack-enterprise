@@ -49,8 +49,8 @@ var (
 
 	Configuration = field.NewConfiguration(
 		ConfigurationFields,
-		field.WithConnectorDisplayName("Slack"),
-		field.WithHelpUrl("/docs/baton/slack"),
+		field.WithConnectorDisplayName("Slack Enterprise Grid"),
+		field.WithHelpUrl("/docs/baton/slack-enterprise"),
 		field.WithIconUrl("/static/app-icons/slack.svg"),
 		field.WithConstraints(FieldRelationships...),
 	)
