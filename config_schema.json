@@ -100,7 +100,7 @@
       ]
     }
   ],
-  "displayName": "Slack",
-  "helpUrl": "/docs/baton/slack",
+  "displayName": "Slack Enterprise Grid",
+  "helpUrl": "/docs/baton/slack-enterprise",
   "iconUrl": "/static/app-icons/slack.svg"
 }
