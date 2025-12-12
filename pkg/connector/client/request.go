@@ -58,6 +58,10 @@ func WithBearerToken(token string) uhttp.RequestOption {
 	return uhttp.WithHeader("Authorization", fmt.Sprintf("Bearer %s", token))
 }
 
+type errorHandler interface {
+	handleError(error) error
+}
+
 func (c *Client) post(
 	ctx context.Context,
 	path string,
@@ -216,9 +220,17 @@ func (c *Client) doRequest(
 		return &ratelimitData, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	if err := json.Unmarshal(bodyBytes, &target); err != nil {
-		logger.Error("failed to unmarshal response", zap.String("body", logBody(bodyBytes, 2048)))
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	if response.StatusCode != http.StatusNoContent && len(bodyBytes) > 0 {
+		if err := json.Unmarshal(bodyBytes, &target); err != nil {
+			logger.Error("failed to unmarshal response", zap.String("body", logBody(bodyBytes, 2048)))
+			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		}
+	}
+
+	if handler, ok := target.(errorHandler); ok {
+		if err := handler.handleError(err); err != nil {
+			return &ratelimitData, err
+		}
 	}
 
 	return &ratelimitData, nil
