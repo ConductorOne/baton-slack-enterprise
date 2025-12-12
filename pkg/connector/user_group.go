@@ -10,7 +10,6 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 
-	"github.com/conductorone/baton-slack-enterprise/pkg"
 	enterprise "github.com/conductorone/baton-slack-enterprise/pkg/connector/client"
 	"github.com/slack-go/slack"
 )
@@ -89,14 +88,13 @@ func (o *userGroupResourceType) List(
 		return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, err
 	}
 
-	output, err := pkg.MakeResourceList(
-		ctx,
-		userGroups,
-		parentResourceID,
-		userGroupResource,
-	)
-	if err != nil {
-		return nil, nil, err
+	output := make([]*v2.Resource, 0, len(userGroups))
+	for _, ug := range userGroups {
+		r, err := userGroupResource(ctx, ug, parentResourceID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("creating user group resource: %w", err)
+		}
+		output = append(output, r)
 	}
 	return output, &resource.SyncOpResults{Annotations: outputAnnotations}, nil
 }
@@ -159,12 +157,11 @@ func (o *userGroupResourceType) Grants(
 	for _, member := range groupMembers {
 		user, err := o.client.GetUserInfoContext(ctx, member)
 		if err != nil {
-			annos, err := pkg.AnnotationsForError(err)
-			return nil, &resource.SyncOpResults{Annotations: annos}, err
+			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, fmt.Errorf("getting user info: %w", err)
 		}
 		ur, err := userResource(ctx, user, res.Id)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("creating user resource: %w", err)
 		}
 
 		grant := grant.NewGrant(res, memberEntitlement, ur.Id)
