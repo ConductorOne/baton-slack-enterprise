@@ -15,6 +15,19 @@ func logBody(body []byte, size int) string {
 	return string(body)
 }
 
+// Slack API may return errors in the response body even when the HTTP status code is 200.
+//
+//	extracts a Slack error from a Go error and wraps it with the appropriate gRPC code.
+//	This is useful when working with the slack-go library which returns plain Go errors.
+func WrapError(err error, contextMsg string) error {
+	if err == nil {
+		return nil
+	}
+
+	grpcCode := mapSlackErrorToGRPCCode(err.Error())
+	return uhttp.WrapErrors(grpcCode, contextMsg, err)
+}
+
 func mapSlackErrorToGRPCCode(slackError string) codes.Code {
 	switch slackError {
 	case "invalid_auth", "token_revoked", "token_expired", "not_authed", "account_inactive":

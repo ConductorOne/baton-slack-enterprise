@@ -216,7 +216,7 @@ func (c *Client) doRequest(
 		return &ratelimitData, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	if response.StatusCode == http.StatusNoContent || len(bodyBytes) > 0 {
+	if response.StatusCode == http.StatusNoContent || len(bodyBytes) == 0 {
 		return &ratelimitData, nil
 	}
 
@@ -241,58 +241,12 @@ func (c *Client) deleteScim(
 	*v2.RateLimitDescription,
 	error,
 ) {
-	logger := ctxzap.Extract(ctx)
-	logger.Debug(
-		"making request",
-		zap.String("method", http.MethodDelete),
-		zap.String("url", c.getUrl(path, nil, true).String()),
-	)
-
-	request, err := c.wrapper.NewRequest(
+	var emptyResponse interface{}
+	return c.doRequest(
 		ctx,
 		http.MethodDelete,
 		c.getUrl(path, nil, true),
+		&emptyResponse,
 		WithBearerToken(c.token),
-		uhttp.WithAcceptJSONHeader(),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create SCIM delete request: %w", err)
-	}
-
-	var ratelimitData v2.RateLimitDescription
-	response, err := c.wrapper.Do(
-		request,
-		uhttp.WithRatelimitData(&ratelimitData),
-	)
-	if err != nil {
-		if response != nil && response.Body != nil {
-			bodyBytes, _ := io.ReadAll(response.Body)
-			logger.Error("SCIM delete request failed", zap.String("body", logBody(bodyBytes, 2048)))
-		}
-		return &ratelimitData, err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode == http.StatusNoContent {
-		return &ratelimitData, nil
-	}
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		logger.Error("failed to read SCIM error response body", zap.String("body", logBody(bodyBytes, 2048)))
-		return &ratelimitData, fmt.Errorf("failed to read SCIM error response body: %w", err)
-	}
-
-	// return error details if available
-	if len(bodyBytes) > 0 {
-		var errorResponse map[string]interface{}
-		if err := json.Unmarshal(bodyBytes, &errorResponse); err != nil {
-			return &ratelimitData, fmt.Errorf("failed to parse SCIM error response: %w", err)
-		}
-		if detail, ok := errorResponse["detail"].(string); ok {
-			return &ratelimitData, fmt.Errorf("SCIM API error: %s", detail)
-		}
-	}
-
-	return &ratelimitData, nil
 }

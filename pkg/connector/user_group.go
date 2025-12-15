@@ -157,7 +157,7 @@ func (o *userGroupResourceType) Grants(
 	for _, member := range groupMembers {
 		user, err := o.client.GetUserInfoContext(ctx, member)
 		if err != nil {
-			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, fmt.Errorf("getting user info: %w", err)
+			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, enterprise.WrapError(err, "getting user info")
 		}
 		ur, err := userResource(ctx, user, res.Id)
 		if err != nil {
