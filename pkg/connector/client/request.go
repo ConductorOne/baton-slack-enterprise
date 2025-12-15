@@ -108,62 +108,6 @@ func (c *Client) postJSON(
 	)
 }
 
-func (c *Client) getScim(
-	ctx context.Context,
-	path string,
-	target interface{},
-	queryParameters map[string]interface{},
-) (
-	*v2.RateLimitDescription,
-	error,
-) {
-	return c.doRequest(
-		ctx,
-		http.MethodGet,
-		c.getUrl(path, queryParameters, true),
-		&target,
-		WithBearerToken(c.token),
-	)
-}
-
-func (c *Client) patchScimBytes(
-	ctx context.Context,
-	path string,
-	target interface{},
-	payload []byte,
-) (
-	*v2.RateLimitDescription,
-	error,
-) {
-	return c.doRequest(
-		ctx,
-		http.MethodPatch,
-		c.getUrl(path, nil, true),
-		&target,
-		WithBearerToken(c.token),
-		uhttp.WithJSONBody(payload),
-	)
-}
-
-func (c *Client) patchScim(
-	ctx context.Context,
-	path string,
-	target interface{},
-	payload map[string]any,
-) (
-	*v2.RateLimitDescription,
-	error,
-) {
-	return c.doRequest(
-		ctx,
-		http.MethodPatch,
-		c.getUrl(path, nil, true),
-		&target,
-		WithBearerToken(c.token),
-		uhttp.WithJSONBody(payload),
-	)
-}
-
 func (c *Client) doRequest(
 	ctx context.Context,
 	method string,
@@ -226,27 +170,10 @@ func (c *Client) doRequest(
 	}
 
 	if response.StatusCode == http.StatusOK {
-		if err := checkSlackAPIErrorFromBytes(bodyBytes); err != nil {
+		if err := ErrorWithGrpcCodeFromBytes(bodyBytes); err != nil {
 			return &ratelimitData, err
 		}
 	}
 
 	return &ratelimitData, nil
-}
-
-func (c *Client) deleteScim(
-	ctx context.Context,
-	path string,
-) (
-	*v2.RateLimitDescription,
-	error,
-) {
-	var emptyResponse interface{}
-	return c.doRequest(
-		ctx,
-		http.MethodDelete,
-		c.getUrl(path, nil, true),
-		&emptyResponse,
-		WithBearerToken(c.token),
-	)
 }

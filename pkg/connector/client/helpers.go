@@ -24,11 +24,12 @@ func WrapError(err error, contextMsg string) error {
 		return nil
 	}
 
-	grpcCode := mapSlackErrorToGRPCCode(err.Error())
+	grpcCode := MapSlackErrorToGRPCCode(err.Error())
 	return uhttp.WrapErrors(grpcCode, contextMsg, err)
 }
 
-func mapSlackErrorToGRPCCode(slackError string) codes.Code {
+// MapSlackErrorToGRPCCode maps Slack error strings to gRPC codes.
+func MapSlackErrorToGRPCCode(slackError string) codes.Code {
 	switch slackError {
 	case "invalid_auth", "token_revoked", "token_expired", "not_authed", "account_inactive":
 		return codes.Unauthenticated
@@ -59,11 +60,12 @@ func mapSlackErrorToGRPCCode(slackError string) codes.Code {
 }
 
 // Slack API may return errors in the response body even when the HTTP status code is 200.
-// examples:
+//
+//	examples:
 //
 //	{"ok":false,"error":"invalid_auth"}
 //	{"ok":false,"error": "user_not_found"}
-func checkSlackAPIErrorFromBytes(bodyBytes []byte) error {
+func ErrorWithGrpcCodeFromBytes(bodyBytes []byte) error {
 	var baseCheck struct {
 		Ok    bool   `json:"ok"`
 		Error string `json:"error"`
@@ -74,7 +76,7 @@ func checkSlackAPIErrorFromBytes(bodyBytes []byte) error {
 	}
 
 	if !baseCheck.Ok && baseCheck.Error != "" {
-		grpcCode := mapSlackErrorToGRPCCode(baseCheck.Error)
+		grpcCode := MapSlackErrorToGRPCCode(baseCheck.Error)
 		return uhttp.WrapErrors(
 			grpcCode,
 			fmt.Sprintf("Slack API error: %s", baseCheck.Error),
