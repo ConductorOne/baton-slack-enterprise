@@ -16,8 +16,8 @@ import (
 const (
 	PageSizeDefault = 100
 
-	ScimVersionV2                 = "v2"
-	ScimVersionV1                 = "v1"
+	ScimVersionV2 = "v2"
+	ScimVersionV1 = "v1"
 )
 
 var workspaceNameNamespace = sessions.WithPrefix("workspace_name")

@@ -2,7 +2,7 @@ package connector
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -92,7 +92,7 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		workspaceBuilder, mockService := newTestWorkspaceBuilder()
 		// Mock the add user to workspace call.
 		mockService.AddUserFunc = func(ctx context.Context, teamID, userID string) (*v2.RateLimitDescription, error) {
-			return nil, fmt.Errorf(codes.AlreadyExists.String())
+			return nil, errors.New(codes.AlreadyExists.String())
 		}
 
 		principal := &v2.Resource{
@@ -189,7 +189,7 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		workspaceBuilder, mockService := newTestWorkspaceBuilder()
 		// Mock the remove user from workspace call.
 		mockService.RemoveUserFunc = func(ctx context.Context, teamID, userID string) (*v2.RateLimitDescription, error) {
-			return nil, fmt.Errorf(codes.NotFound.String())
+			return nil, errors.New(codes.NotFound.String())
 		}
 
 		principal := &v2.Resource{
