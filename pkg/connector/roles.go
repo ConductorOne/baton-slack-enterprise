@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -275,6 +276,11 @@ func (o *workspaceRoleType) Revoke(
 	outputAnnotations.WithRateLimiting(rateLimitData)
 
 	if err != nil {
+		// Check if the error indicates the user is already deleted/removed.
+		if strings.Contains(err.Error(), codes.NotFound.String()) {
+			outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+			return outputAnnotations, nil
+		}
 		return outputAnnotations, fmt.Errorf("failed to revoke workspace role during revoke operation: %w", err)
 	}
 
