@@ -16,11 +16,8 @@ import (
 const (
 	PageSizeDefault = 100
 
-	// Slack API error string constants.
-	SlackErrUserAlreadyTeamMember = "user_already_team_member"
-	SlackErrUserAlreadyDeleted    = "user_already_deleted"
-	ScimVersionV2                 = "v2"
-	ScimVersionV1                 = "v1"
+	ScimVersionV2 = "v2"
+	ScimVersionV1 = "v1"
 )
 
 var workspaceNameNamespace = sessions.WithPrefix("workspace_name")

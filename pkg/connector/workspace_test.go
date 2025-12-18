@@ -2,7 +2,7 @@ package connector
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -10,6 +10,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 )
 
 // Helper function to create a test builder with mocks.
@@ -91,7 +92,7 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		workspaceBuilder, mockService := newTestWorkspaceBuilder()
 		// Mock the add user to workspace call.
 		mockService.AddUserFunc = func(ctx context.Context, teamID, userID string) (*v2.RateLimitDescription, error) {
-			return nil, fmt.Errorf(enterprise.SlackErrUserAlreadyTeamMember)
+			return nil, errors.New(codes.AlreadyExists.String())
 		}
 
 		principal := &v2.Resource{
@@ -188,7 +189,7 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		workspaceBuilder, mockService := newTestWorkspaceBuilder()
 		// Mock the remove user from workspace call.
 		mockService.RemoveUserFunc = func(ctx context.Context, teamID, userID string) (*v2.RateLimitDescription, error) {
-			return nil, fmt.Errorf(enterprise.SlackErrUserAlreadyDeleted)
+			return nil, errors.New(codes.NotFound.String())
 		}
 
 		principal := &v2.Resource{

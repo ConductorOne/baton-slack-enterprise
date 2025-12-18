@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -309,7 +310,7 @@ func (o *workspaceResourceType) Grant(
 
 	if err != nil {
 		// Check if the error indicates the user is already a member.
-		if err.Error() == enterprise.SlackErrUserAlreadyTeamMember {
+		if strings.Contains(err.Error(), codes.AlreadyExists.String()) {
 			outputAnnotations.Append(&v2.GrantAlreadyExists{})
 			return outputAnnotations, nil
 		}
@@ -351,7 +352,7 @@ func (o *workspaceResourceType) Revoke(
 
 	if err != nil {
 		// Check if the error indicates the user is already deleted/removed.
-		if err.Error() == enterprise.SlackErrUserAlreadyDeleted {
+		if strings.Contains(err.Error(), codes.NotFound.String()) {
 			outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
 			return outputAnnotations, nil
 		}
