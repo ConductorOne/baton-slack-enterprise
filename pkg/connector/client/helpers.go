@@ -35,7 +35,7 @@ func WrapError(err error, contextMsg string) error {
 	var slackLibErr slack.StatusCodeError
 	if errors.As(err, &slackLibErr) {
 		grpcCode := httpStatusToGRPCCode(slackLibErr.Code)
-		contextMsg := fmt.Sprintf("Slack-go API HTTP error: %s : %s", slackLibErr.Status, contextMsg)
+		contextMsg = fmt.Sprintf("Slack-go API HTTP error: %s : %s", slackLibErr.Status, contextMsg)
 		return uhttp.WrapErrors(grpcCode, contextMsg, err)
 	}
 
