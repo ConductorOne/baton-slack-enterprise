@@ -44,11 +44,16 @@ func NewClient(
 	botToken string,
 	enterpriseID string,
 	govEnv bool,
+	baseURLOverride string,
 ) (*Client, error) {
 	finalBaseUrl := baseUrl
 	finalBaseScimUrl := baseScimUrl
 	finalScimVersion := ScimVersionV2
-	if govEnv {
+	// Custom base URL takes precedence over gov environment
+	if baseURLOverride != "" {
+		finalBaseUrl = baseURLOverride
+		finalBaseScimUrl = baseURLOverride
+	} else if govEnv {
 		finalBaseUrl = baseGovUrl
 		finalBaseScimUrl = baseGovScimUrl
 		finalScimVersion = ScimVersionV1
