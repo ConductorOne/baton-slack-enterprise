@@ -16,8 +16,8 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "valid config",
 			config: &SlackEnterprise{
-				Token:           "xoxb-test-token",
-				EnterpriseToken: "xoxp-test-enterprise-token",
+				Token:           "xoxb-test-token",           // #nosec G101
+				EnterpriseToken: "xoxp-test-enterprise-token", // #nosec G101
 			},
 			wantErr: false,
 		},

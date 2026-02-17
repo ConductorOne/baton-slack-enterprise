@@ -16,7 +16,6 @@ import (
 
 type userGroupResourceType struct {
 	resourceType     *v2.ResourceType
-	client           *slack.Client
 	enterpriseID     string
 	enterpriseClient *enterprise.Client
 }
@@ -26,13 +25,11 @@ func (o *userGroupResourceType) ResourceType(_ context.Context) *v2.ResourceType
 }
 
 func userGroupBuilder(
-	client *slack.Client,
 	enterpriseID string,
 	enterpriseClient *enterprise.Client,
 ) *userGroupResourceType {
 	return &userGroupResourceType{
 		resourceType:     resourceTypeUserGroup,
-		client:           client,
 		enterpriseID:     enterpriseID,
 		enterpriseClient: enterpriseClient,
 	}
@@ -155,18 +152,13 @@ func (o *userGroupResourceType) Grants(
 
 	var rv []*v2.Grant
 	for _, member := range groupMembers {
-		user, err := o.client.GetUserInfoContext(ctx, member)
+		userID, err := resource.NewResourceID(resourceTypeUser, member)
 		if err != nil {
-			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, enterprise.WrapError(err, "getting user info")
-		}
-		ur, err := userResource(ctx, user, res.Id)
-		if err != nil {
-			return nil, nil, fmt.Errorf("creating user resource: %w", err)
+			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, fmt.Errorf("baton-slack-enterprise: failed to create resource ID for user group member %q: %w", member, err)
 		}
 
-		grant := grant.NewGrant(res, memberEntitlement, ur.Id)
-		rv = append(rv, grant)
+		rv = append(rv, grant.NewGrant(res, memberEntitlement, userID))
 	}
 
-	return rv, &resource.SyncOpResults{}, nil
+	return rv, &resource.SyncOpResults{Annotations: outputAnnotations}, nil
 }
