@@ -154,7 +154,7 @@ func (o *userGroupResourceType) Grants(
 	for _, member := range groupMembers {
 		userID, err := resource.NewResourceID(resourceTypeUser, member)
 		if err != nil {
-			return nil, nil, err
+			return nil, &resource.SyncOpResults{Annotations: outputAnnotations}, fmt.Errorf("baton-slack-enterprise: failed to create resource ID for user group member %q: %w", member, err)
 		}
 
 		rv = append(rv, grant.NewGrant(res, memberEntitlement, userID))
