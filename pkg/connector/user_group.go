@@ -203,8 +203,8 @@ func (o *userGroupResourceType) Grant(
 		}
 	}
 
-	newMembers := append(currentMembers, userID)
-	ratelimitData, err = o.enterpriseClient.UpdateUserGroupMembers(ctx, userGroupID, teamID, newMembers)
+	currentMembers = append(currentMembers, userID)
+	ratelimitData, err = o.enterpriseClient.UpdateUserGroupMembers(ctx, userGroupID, teamID, currentMembers)
 	outputAnnotations.WithRateLimiting(ratelimitData)
 	if err != nil {
 		return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to add user to user group: %w", err)
