@@ -16,6 +16,10 @@ import (
 const (
 	PageSizeDefault = 100
 
+	// Slack API error string constants.
+	// SlackErrNoSuchSubteam is returned when a user group is temporarily unreachable (CXH-434).
+	SlackErrNoSuchSubteam = "no_such_subteam"
+
 	ScimVersionV2 = "v2"
 	ScimVersionV1 = "v1"
 )
