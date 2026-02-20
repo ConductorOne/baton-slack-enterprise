@@ -15,7 +15,7 @@ func TestValidateConfig(t *testing.T) {
 	}{
 		{
 			name: "valid config",
-			config: &SlackEnterprise{
+			config: &SlackEnterprise{ //nolint:gosec // Not real credentials, test values only
 				Token:           "xoxb-test-token",
 				EnterpriseToken: "xoxp-test-enterprise-token",
 			},
