@@ -188,7 +188,7 @@ func (c *Client) UpdateUserGroupMembers(
 			"team_id":   teamID,
 			"users":     strings.Join(users, ","),
 		},
-		true,
+		false,
 	)
 	if err != nil {
 		return ratelimitData, err
