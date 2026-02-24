@@ -17,7 +17,8 @@ const (
 	PageSizeDefault = 100
 
 	// Slack API error string constants.
-	// SlackErrNoSuchSubteam is returned when a user group is temporarily unreachable (CXH-434).
+	// SlackErrNoSuchSubteam is returned by the Slack API for user groups. We determined
+	// empirically that retrying on this error resolves the issue.
 	SlackErrNoSuchSubteam = "no_such_subteam"
 
 	ScimVersionV2 = "v2"
