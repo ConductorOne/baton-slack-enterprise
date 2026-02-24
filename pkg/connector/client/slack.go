@@ -16,6 +16,11 @@ import (
 const (
 	PageSizeDefault = 100
 
+	// Slack API error string constants.
+	// SlackErrNoSuchSubteam is returned by the Slack API for user groups. We determined
+	// empirically that retrying on this error resolves the issue.
+	SlackErrNoSuchSubteam = "no_such_subteam"
+
 	ScimVersionV2 = "v2"
 	ScimVersionV1 = "v1"
 )
