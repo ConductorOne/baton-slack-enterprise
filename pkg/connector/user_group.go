@@ -9,6 +9,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 
 	enterprise "github.com/conductorone/baton-slack-enterprise/pkg/connector/client"
 	"github.com/slack-go/slack"
@@ -161,4 +163,109 @@ func (o *userGroupResourceType) Grants(
 	}
 
 	return rv, &resource.SyncOpResults{Annotations: outputAnnotations}, nil
+}
+
+func (o *userGroupResourceType) Grant(
+	ctx context.Context,
+	principal *v2.Resource,
+	ent *v2.Entitlement,
+) (
+	annotations.Annotations,
+	error,
+) {
+	logger := ctxzap.Extract(ctx)
+
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		logger.Warn(
+			"baton-slack-enterprise: only users can be added to a user group",
+			zap.String("principal_type", principal.Id.ResourceType),
+			zap.String("principal_id", principal.Id.Resource),
+		)
+		return nil, fmt.Errorf("baton-slack-enterprise: only users can be added to a user group")
+	}
+
+	userGroupID := ent.Resource.Id.Resource
+	teamID := ent.Resource.ParentResourceId.Resource
+	userID := principal.Id.Resource
+
+	outputAnnotations := annotations.New()
+
+	currentMembers, ratelimitData, err := o.enterpriseClient.GetUserGroupMembers(ctx, userGroupID, teamID)
+	outputAnnotations.WithRateLimiting(ratelimitData)
+	if err != nil {
+		return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user group members: %w", err)
+	}
+
+	for _, member := range currentMembers {
+		if member == userID {
+			outputAnnotations.Append(&v2.GrantAlreadyExists{})
+			return outputAnnotations, nil
+		}
+	}
+
+	currentMembers = append(currentMembers, userID)
+	ratelimitData, err = o.enterpriseClient.UpdateUserGroupMembers(ctx, userGroupID, teamID, currentMembers)
+	outputAnnotations.WithRateLimiting(ratelimitData)
+	if err != nil {
+		return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to add user to user group: %w", err)
+	}
+
+	return outputAnnotations, nil
+}
+
+func (o *userGroupResourceType) Revoke(
+	ctx context.Context,
+	g *v2.Grant,
+) (
+	annotations.Annotations,
+	error,
+) {
+	logger := ctxzap.Extract(ctx)
+
+	principal := g.Principal
+	ent := g.Entitlement
+
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		logger.Warn(
+			"baton-slack-enterprise: only users can be removed from a user group",
+			zap.String("principal_type", principal.Id.ResourceType),
+			zap.String("principal_id", principal.Id.Resource),
+		)
+		return nil, fmt.Errorf("baton-slack-enterprise: only users can be removed from a user group")
+	}
+
+	userGroupID := ent.Resource.Id.Resource
+	teamID := ent.Resource.ParentResourceId.Resource
+	userID := principal.Id.Resource
+
+	outputAnnotations := annotations.New()
+
+	currentMembers, ratelimitData, err := o.enterpriseClient.GetUserGroupMembers(ctx, userGroupID, teamID)
+	outputAnnotations.WithRateLimiting(ratelimitData)
+	if err != nil {
+		return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user group members: %w", err)
+	}
+
+	found := false
+	newMembers := make([]string, 0, len(currentMembers))
+	for _, member := range currentMembers {
+		if member == userID {
+			found = true
+		} else {
+			newMembers = append(newMembers, member)
+		}
+	}
+
+	if !found {
+		outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+		return outputAnnotations, nil
+	}
+
+	ratelimitData, err = o.enterpriseClient.UpdateUserGroupMembers(ctx, userGroupID, teamID, newMembers)
+	outputAnnotations.WithRateLimiting(ratelimitData)
+	if err != nil {
+		return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to remove user from user group: %w", err)
+	}
+
+	return outputAnnotations, nil
 }

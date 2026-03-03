@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/session"
@@ -168,6 +169,37 @@ func (c *Client) GetUserGroupMembers(
 	}
 
 	return response.Users, ratelimitData, nil
+}
+
+// UpdateUserGroupMembers replaces the entire list of users in a user group.
+// https://docs.slack.dev/reference/methods/usergroups.users.update
+func (c *Client) UpdateUserGroupMembers(
+	ctx context.Context,
+	userGroupID string,
+	teamID string,
+	users []string,
+) (
+	*v2.RateLimitDescription,
+	error,
+) {
+	var response BaseResponse
+
+	ratelimitData, err := c.post(
+		ctx,
+		UrlPathUpdateUserGroupMembers,
+		&response,
+		map[string]interface{}{
+			"usergroup": userGroupID,
+			"team_id":   teamID,
+			"users":     strings.Join(users, ","),
+		},
+		false,
+	)
+	if err != nil {
+		return ratelimitData, err
+	}
+
+	return ratelimitData, nil
 }
 
 // GetUsersAdmin returns all users in Enterprise grid.
