@@ -67,9 +67,11 @@ var (
 			capabilityPermissions(
 				// Bot Token Scopes
 				"usergroups:read",
+				"usergroups:write",
 				"users:read",
 				// User Token Scopes
 				"admin.usergroups:read",
+				"admin.usergroups:write",
 			),
 		),
 	}
