@@ -168,7 +168,7 @@ func (o *workspaceResourceType) Grants(
 	)
 	outputAnnotations.WithRateLimiting(ratelimitData)
 	if err != nil {
-		return nil, nil, err
+		return nil, &resources.SyncOpResults{Annotations: outputAnnotations}, err
 	}
 
 	pageToken, err := bag.NextToken(nextCursor)
@@ -179,9 +179,6 @@ func (o *workspaceResourceType) Grants(
 	var rv []*v2.Grant
 	for _, user := range users {
 		if user.IsStranger {
-			continue
-		}
-		if user.Deleted {
 			continue
 		}
 		userID, err := resources.NewResourceID(resourceTypeUser, user.ID)
@@ -282,6 +279,7 @@ func (o *workspaceResourceType) Grants(
 
 	return rv, &resources.SyncOpResults{
 		NextPageToken: pageToken,
+		Annotations:   outputAnnotations,
 	}, nil
 }
 
