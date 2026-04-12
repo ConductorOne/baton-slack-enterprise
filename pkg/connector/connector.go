@@ -73,12 +73,12 @@ func (c *Slack) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 func (s *Slack) Validate(ctx context.Context) (annotations.Annotations, error) {
 	res, err := s.client.AuthTestContext(ctx)
 	if err != nil {
-		return nil, enterprise.WrapError(err, "authenticating")
+		return nil, enterprise.WrapError(err, "authenticating", nil)
 	}
 
 	user, err := s.client.GetUserInfoContext(ctx, res.UserID)
 	if err != nil {
-		return nil, enterprise.WrapError(err, "retrieving authenticated user")
+		return nil, enterprise.WrapError(err, "retrieving authenticated user", nil)
 	}
 
 	isValidUser := user.IsAdmin || user.IsOwner || user.IsPrimaryOwner || user.IsBot
@@ -122,7 +122,7 @@ func NewSlack(ctx context.Context, apiKey, enterpriseKey string, govEnv bool) (*
 
 	res, err := client.AuthTestContext(ctx)
 	if err != nil {
-		return nil, enterprise.WrapError(err, "authenticating during initialization")
+		return nil, enterprise.WrapError(err, "authenticating during initialization", nil)
 	}
 
 	if res.EnterpriseID == "" {
