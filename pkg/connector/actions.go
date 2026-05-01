@@ -25,8 +25,8 @@ var (
 		Description: "Deactivate a Slack user account by setting active to false via SCIM API",
 		Arguments: []*config_sdk.Field{
 			{
-				Name:        "user_id",
-				DisplayName: "User ID",
+				Name:        userIDKey,
+				DisplayName: userIDDisplay,
 				Description: "The Slack user ID to disable",
 				IsRequired:  true,
 				Field:       &config_sdk.Field_StringField{},
@@ -34,20 +34,20 @@ var (
 		},
 		ReturnTypes: []*config_sdk.Field{
 			{
-				Name:        "success",
+				Name:        successKey,
 				DisplayName: "Success",
 				Description: "Indicates if the operation was successful",
 				Field:       &config_sdk.Field_BoolField{},
 			},
 			{
-				Name:        "message",
+				Name:        messageKey,
 				DisplayName: "Message",
 				Description: "A descriptive message about the operation result",
 				Field:       &config_sdk.Field_StringField{},
 			},
 			{
-				Name:        "user_id",
-				DisplayName: "User ID",
+				Name:        userIDKey,
+				DisplayName: userIDDisplay,
 				Description: "The Slack user ID that was processed",
 				Field:       &config_sdk.Field_StringField{},
 			},
@@ -62,8 +62,8 @@ var (
 		Description: "Activate a Slack user account by setting active to true via SCIM API",
 		Arguments: []*config_sdk.Field{
 			{
-				Name:        "user_id",
-				DisplayName: "User ID",
+				Name:        userIDKey,
+				DisplayName: userIDDisplay,
 				Description: "The Slack user ID to enable",
 				IsRequired:  true,
 				Field:       &config_sdk.Field_StringField{},
@@ -71,20 +71,20 @@ var (
 		},
 		ReturnTypes: []*config_sdk.Field{
 			{
-				Name:        "success",
+				Name:        successKey,
 				DisplayName: "Success",
 				Description: "Indicates if the operation was successful",
 				Field:       &config_sdk.Field_BoolField{},
 			},
 			{
-				Name:        "message",
+				Name:        messageKey,
 				DisplayName: "Message",
 				Description: "A descriptive message about the operation result",
 				Field:       &config_sdk.Field_StringField{},
 			},
 			{
-				Name:        "user_id",
-				DisplayName: "User ID",
+				Name:        userIDKey,
+				DisplayName: userIDDisplay,
 				Description: "The Slack user ID that was processed",
 				Field:       &config_sdk.Field_StringField{},
 			},
