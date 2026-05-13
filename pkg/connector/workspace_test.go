@@ -34,8 +34,8 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		workspaceBuilder, mockService := newTestWorkspaceBuilder()
 		// Mock the add user to workspace call.
 		mockService.AddUserFunc = func(ctx context.Context, teamID, userID string) (*v2.RateLimitDescription, error) {
-			assert.Equal(t, "test-team", teamID)
-			assert.Equal(t, "test-user", userID)
+			assert.Equal(t, testTeamResID, teamID)
+			assert.Equal(t, testUserResID, userID)
 			return nil, nil
 		}
 
@@ -43,14 +43,14 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		principal := &v2.Resource{
 			Id: &v2.ResourceId{
 				ResourceType: resourceTypeUser.Id,
-				Resource:     "test-user",
+				Resource:     testUserResID,
 			},
 		}
 
 		entitlement := &v2.Entitlement{
 			Resource: &v2.Resource{
 				Id: &v2.ResourceId{
-					Resource: "test-team",
+					Resource: testTeamResID,
 				},
 			},
 		}
@@ -68,14 +68,14 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		principal := &v2.Resource{
 			Id: &v2.ResourceId{
 				ResourceType: "invalid-type",
-				Resource:     "test-user",
+				Resource:     testUserResID,
 			},
 		}
 
 		entitlement := &v2.Entitlement{
 			Resource: &v2.Resource{
 				Id: &v2.ResourceId{
-					Resource: "test-team",
+					Resource: testTeamResID,
 				},
 			},
 		}
@@ -98,14 +98,14 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		principal := &v2.Resource{
 			Id: &v2.ResourceId{
 				ResourceType: resourceTypeUser.Id,
-				Resource:     "test-user",
+				Resource:     testUserResID,
 			},
 		}
 
 		entitlement := &v2.Entitlement{
 			Resource: &v2.Resource{
 				Id: &v2.ResourceId{
-					Resource: "test-team",
+					Resource: testTeamResID,
 				},
 			},
 		}
@@ -122,22 +122,22 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		workspaceBuilder, mockService := newTestWorkspaceBuilder()
 		// Mock the remove user from workspace call.
 		mockService.RemoveUserFunc = func(ctx context.Context, teamID, userID string) (*v2.RateLimitDescription, error) {
-			assert.Equal(t, "test-team", teamID)
-			assert.Equal(t, "test-user", userID)
+			assert.Equal(t, testTeamResID, teamID)
+			assert.Equal(t, testUserResID, userID)
 			return nil, nil
 		}
 
 		principal := &v2.Resource{
 			Id: &v2.ResourceId{
 				ResourceType: resourceTypeUser.Id,
-				Resource:     "test-user",
+				Resource:     testUserResID,
 			},
 		}
 
 		entitlement := &v2.Entitlement{
 			Resource: &v2.Resource{
 				Id: &v2.ResourceId{
-					Resource: "test-team",
+					Resource: testTeamResID,
 				},
 			},
 		}
@@ -160,14 +160,14 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		principal := &v2.Resource{
 			Id: &v2.ResourceId{
 				ResourceType: "invalid-type",
-				Resource:     "test-user",
+				Resource:     testUserResID,
 			},
 		}
 
 		entitlement := &v2.Entitlement{
 			Resource: &v2.Resource{
 				Id: &v2.ResourceId{
-					Resource: "test-team",
+					Resource: testTeamResID,
 				},
 			},
 		}
@@ -195,14 +195,14 @@ func TestWorkspaceGrantAndRevoke(t *testing.T) {
 		principal := &v2.Resource{
 			Id: &v2.ResourceId{
 				ResourceType: resourceTypeUser.Id,
-				Resource:     "test-user",
+				Resource:     testUserResID,
 			},
 		}
 
 		entitlement := &v2.Entitlement{
 			Resource: &v2.Resource{
 				Id: &v2.ResourceId{
-					Resource: "test-team",
+					Resource: testTeamResID,
 				},
 			},
 		}

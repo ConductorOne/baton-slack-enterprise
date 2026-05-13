@@ -102,7 +102,7 @@ func (s *slackLogger) Output(callDepth int, msg string) error {
 	return nil
 }
 
-func NewSlack(ctx context.Context, apiKey, enterpriseKey string, govEnv bool) (*Slack, error) {
+func NewSlack(ctx context.Context, apiKey, enterpriseKey string, govEnv bool, baseURL string) (*Slack, error) {
 	l := ctxzap.Extract(ctx)
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, l))
 	if err != nil {
@@ -115,7 +115,10 @@ func NewSlack(ctx context.Context, apiKey, enterpriseKey string, govEnv bool) (*
 		slack.OptionHTTPClient(httpClient),
 		slack.OptionLog(logger),
 	}
-	if govEnv {
+	// Custom base URL takes precedence over gov environment
+	if baseURL != "" {
+		opts = append(opts, slack.OptionAPIURL(baseURL))
+	} else if govEnv {
 		opts = append(opts, slack.OptionAPIURL(govSlackApiUrl))
 	}
 	client := slack.New(apiKey, opts...)
@@ -148,6 +151,7 @@ func NewSlack(ctx context.Context, apiKey, enterpriseKey string, govEnv bool) (*
 		apiKey,
 		res.EnterpriseID,
 		govEnv,
+		baseURL,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create enterprise client. Error: %w", err)
@@ -167,6 +171,7 @@ func New(ctx context.Context, config *cfg.SlackEnterprise, opts *cli.ConnectorOp
 		config.Token,
 		config.EnterpriseToken,
 		config.GovEnv,
+		config.BaseUrl,
 	)
 	if err != nil {
 		return nil, nil, err

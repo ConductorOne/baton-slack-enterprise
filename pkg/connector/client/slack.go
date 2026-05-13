@@ -15,7 +15,10 @@ import (
 )
 
 const (
-	PageSizeDefault = 100
+	teamIDKey         = "team_id"
+	userIDKey         = "user_id"
+	scimPatchOpSchema = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+	PageSizeDefault   = 100
 
 	// Slack API error string constants.
 	// SlackErrNoSuchSubteam is returned by the Slack API for user groups. We determined
@@ -44,11 +47,16 @@ func NewClient(
 	botToken string,
 	enterpriseID string,
 	govEnv bool,
+	baseURLOverride string,
 ) (*Client, error) {
 	finalBaseUrl := baseUrl
 	finalBaseScimUrl := baseScimUrl
 	finalScimVersion := ScimVersionV2
-	if govEnv {
+	// Custom base URL takes precedence over gov environment
+	if baseURLOverride != "" {
+		finalBaseUrl = baseURLOverride
+		finalBaseScimUrl = baseURLOverride
+	} else if govEnv {
 		finalBaseUrl = baseGovUrl
 		finalBaseScimUrl = baseGovScimUrl
 		finalScimVersion = ScimVersionV1
@@ -159,7 +167,7 @@ func (c *Client) GetUserGroupMembers(
 		UrlPathGetUserGroupMembers,
 		&response,
 		map[string]interface{}{
-			"team_id":   teamID,
+			teamIDKey:   teamID,
 			"usergroup": userGroupID,
 		},
 		true,
@@ -251,7 +259,7 @@ func (c *Client) GetUsers(
 	*v2.RateLimitDescription,
 	error,
 ) {
-	values := map[string]interface{}{"team_id": teamID}
+	values := map[string]interface{}{teamIDKey: teamID}
 
 	// need to check if cursor is empty because API throws error if empty string is passed
 	if cursor != "" {
@@ -382,7 +390,7 @@ func (c *Client) GetUserGroups(
 		ctx,
 		UrlPathGetUserGroups,
 		&response,
-		map[string]interface{}{"team_id": teamID},
+		map[string]interface{}{teamIDKey: teamID},
 		true,
 	)
 	if err != nil {
@@ -453,8 +461,8 @@ func (c *Client) SetWorkspaceRole(
 		actionUrl,
 		&response,
 		map[string]interface{}{
-			"team_id": teamID,
-			"user_id": userID,
+			teamIDKey: teamID,
+			userIDKey: userID,
 		},
 		false,
 	)
@@ -556,7 +564,7 @@ func (c *Client) AddUserToGroup(
 	error,
 ) {
 	requestBody := PatchOp{
-		Schemas: []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		Schemas: []string{scimPatchOpSchema},
 		Operations: []ScimOperate{
 			{
 				Op:   "add",
@@ -608,7 +616,7 @@ func (c *Client) RemoveUserFromGroup(
 	}
 
 	requestBody := PatchOp{
-		Schemas: []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		Schemas: []string{scimPatchOpSchema},
 		Operations: []ScimOperate{
 			{
 				Op:    "replace",
@@ -657,8 +665,8 @@ func (o *Client) AddUser(ctx context.Context, teamID, userID string) (*v2.RateLi
 		UrlPathUserAdd,
 		&response,
 		map[string]interface{}{
-			"team_id": teamID,
-			"user_id": userID,
+			teamIDKey: teamID,
+			userIDKey: userID,
 		},
 		false,
 	)
@@ -677,8 +685,8 @@ func (o *Client) RemoveUser(ctx context.Context, teamID, userID string) (*v2.Rat
 		UrlPathUserRemove,
 		&response,
 		map[string]interface{}{
-			"team_id": teamID,
-			"user_id": userID,
+			teamIDKey: teamID,
+			userIDKey: userID,
 		},
 		false,
 	)
@@ -703,7 +711,7 @@ func (o *Client) InviteUserToWorkspace(ctx context.Context, p *InviteUserParams)
 		UrlPathUserInvite,
 		&response,
 		map[string]interface{}{
-			"team_id":     p.TeamID,
+			teamIDKey:     p.TeamID,
 			"channel_ids": p.ChannelIDs,
 			"email":       p.Email,
 		},
@@ -748,7 +756,7 @@ func (c *Client) EnableUser(
 	error,
 ) {
 	requestBody := map[string]any{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"schemas": []string{scimPatchOpSchema},
 		"Operations": []map[string]any{
 			{
 				"path":  "active",

@@ -27,6 +27,12 @@ var (
 		field.WithDescription("Flag indicating to use Slack-Gov environment."),
 		field.WithDefaultValue(false),
 	)
+	BaseURLField = field.StringField(
+		"base-url",
+		field.WithDescription("Override the Slack API URL (for testing)"),
+		field.WithHidden(true),
+		field.WithExportTarget(field.ExportTargetCLIOnly),
+	)
 
 	// ConfigurationFields defines the external configuration required for the
 	// connector to run. Note: these fields can be marked as optional or
@@ -35,6 +41,7 @@ var (
 		AccessTokenField,
 		EnterpriseTokenField,
 		GovEnvironmentField,
+		BaseURLField,
 	}
 
 	// FieldRelationships defines relationships between the fields listed in
