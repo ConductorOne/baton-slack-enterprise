@@ -137,9 +137,9 @@ func MapSlackErrorToGRPCCode(slackError string) codes.Code {
 		return codes.NotFound
 	}
 
-	// no_such_subteam — empirically, retrying on this error resolves the issue.
+	// no_such_subteam — return NotFound to indicate the group is disabled or deleted.
 	if containsAny(err, SlackErrNoSuchSubteam) {
-		return codes.Unavailable
+		return codes.NotFound
 	}
 
 	if containsAny(err, "user_already_team_member") {
