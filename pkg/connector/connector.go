@@ -18,11 +18,13 @@ import (
 )
 
 type Slack struct {
-	client           *slack.Client
-	apiKey           string
-	enterpriseClient *enterprise.Client
-	enterpriseID     string
-	govEnv           bool
+	client              *slack.Client
+	apiKey              string
+	enterpriseClient    *enterprise.Client
+	enterpriseID        string
+	govEnv              bool
+	syncWorkspaceRoles  bool
+	syncEnterpriseRoles bool
 }
 
 const govSlackApiUrl = "https://api.slack-gov.com/api/"
@@ -177,6 +179,17 @@ func New(ctx context.Context, config *cfg.SlackEnterprise, opts *cli.ConnectorOp
 		return nil, nil, err
 	}
 
+	// The workspace resource's Grants() also emits workspaceRole and enterpriseRole
+	// grants as an optimization, since the underlying Slack API response for
+	// workspace members already contains role info. Only emit those cross-type
+	// grants if the caller is actually syncing those resource types.
+	cb.syncWorkspaceRoles = true
+	cb.syncEnterpriseRoles = true
+	if opts != nil {
+		cb.syncWorkspaceRoles = opts.WillSyncResourceType(resourceTypeWorkspaceRole.Id)
+		cb.syncEnterpriseRoles = opts.WillSyncResourceType(resourceTypeEnterpriseRole.Id)
+	}
+
 	builderOpts := []connectorbuilder.Opt{}
 	return cb, builderOpts, nil
 }
@@ -184,7 +197,7 @@ func New(ctx context.Context, config *cfg.SlackEnterprise, opts *cli.ConnectorOp
 func (s *Slack) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncerV2 {
 	return []connectorbuilder.ResourceSyncerV2{
 		userBuilder(s.client, s.enterpriseID, s.enterpriseClient),
-		workspaceBuilder(s.client, s.enterpriseID, s.enterpriseClient),
+		workspaceBuilder(s.client, s.enterpriseID, s.enterpriseClient, s.syncWorkspaceRoles, s.syncEnterpriseRoles),
 		userGroupBuilder(s.enterpriseID, s.enterpriseClient),
 		workspaceRoleBuilder(s.client, s.enterpriseID, s.enterpriseClient),
 		enterpriseRoleBuilder(s.enterpriseID, s.enterpriseClient),

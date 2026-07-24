@@ -23,11 +23,13 @@ import (
 const memberEntitlement = "member"
 
 type workspaceResourceType struct {
-	resourceType      *v2.ResourceType
-	client            *slack.Client
-	enterpriseID      string
-	enterpriseService enterprise.SlackEnterpriseService
-	enterpriseClient  *enterprise.Client
+	resourceType        *v2.ResourceType
+	client              *slack.Client
+	enterpriseID        string
+	enterpriseService   enterprise.SlackEnterpriseService
+	enterpriseClient    *enterprise.Client
+	syncWorkspaceRoles  bool
+	syncEnterpriseRoles bool
 }
 
 func (o *workspaceResourceType) ResourceType(_ context.Context) *v2.ResourceType {
@@ -38,13 +40,17 @@ func workspaceBuilder(
 	client *slack.Client,
 	enterpriseID string,
 	enterpriseClient *enterprise.Client,
+	syncWorkspaceRoles bool,
+	syncEnterpriseRoles bool,
 ) *workspaceResourceType {
 	return &workspaceResourceType{
-		resourceType:      resourceTypeWorkspace,
-		client:            client,
-		enterpriseID:      enterpriseID,
-		enterpriseClient:  enterpriseClient,
-		enterpriseService: enterprise.NewSlackEnterpriseService(enterpriseClient),
+		resourceType:        resourceTypeWorkspace,
+		client:              client,
+		enterpriseID:        enterpriseID,
+		enterpriseClient:    enterpriseClient,
+		enterpriseService:   enterprise.NewSlackEnterpriseService(enterpriseClient),
+		syncWorkspaceRoles:  syncWorkspaceRoles,
+		syncEnterpriseRoles: syncEnterpriseRoles,
 	}
 }
 
@@ -186,90 +192,94 @@ func (o *workspaceResourceType) Grants(
 			return nil, nil, err
 		}
 
-		if user.IsPrimaryOwner {
-			rr, err := roleResource(ctx, PrimaryOwnerRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsOwner {
-			rr, err := roleResource(ctx, OwnerRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsAdmin {
-			rr, err := roleResource(ctx, AdminRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsRestricted {
-			if user.IsUltraRestricted {
-				rr, err := roleResource(ctx, SingleChannelGuestRoleID, resource.Id)
-				if err != nil {
-					return nil, nil, err
-				}
-				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-			} else {
-				rr, err := roleResource(ctx, MultiChannelGuestRoleID, resource.Id)
+		if o.syncWorkspaceRoles {
+			if user.IsPrimaryOwner {
+				rr, err := roleResource(ctx, PrimaryOwnerRoleID, resource.Id)
 				if err != nil {
 					return nil, nil, err
 				}
 				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
+
+			if user.IsOwner {
+				rr, err := roleResource(ctx, OwnerRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if user.IsAdmin {
+				rr, err := roleResource(ctx, AdminRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if user.IsRestricted {
+				if user.IsUltraRestricted {
+					rr, err := roleResource(ctx, SingleChannelGuestRoleID, resource.Id)
+					if err != nil {
+						return nil, nil, err
+					}
+					rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+				} else {
+					rr, err := roleResource(ctx, MultiChannelGuestRoleID, resource.Id)
+					if err != nil {
+						return nil, nil, err
+					}
+					rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+				}
+			}
+
+			if user.IsInvitedUser {
+				rr, err := roleResource(ctx, InvitedMemberRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if !user.IsRestricted && !user.IsUltraRestricted && !user.IsInvitedUser && !user.IsBot && !user.Deleted {
+				rr, err := roleResource(ctx, MemberRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if user.IsBot {
+				rr, err := roleResource(ctx, BotRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
 		}
 
-		if user.IsInvitedUser {
-			rr, err := roleResource(ctx, InvitedMemberRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
+		if o.syncEnterpriseRoles {
+			if user.Enterprise.IsPrimaryOwner {
+				rr, err := enterpriseRoleResource(ctx, OrganizationPrimaryOwnerID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if !user.IsRestricted && !user.IsUltraRestricted && !user.IsInvitedUser && !user.IsBot && !user.Deleted {
-			rr, err := roleResource(ctx, MemberRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
+			if user.Enterprise.IsOwner {
+				rr, err := enterpriseRoleResource(ctx, OrganizationOwnerID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsBot {
-			rr, err := roleResource(ctx, BotRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
+			if user.Enterprise.IsAdmin {
+				rr, err := enterpriseRoleResource(ctx, OrganizationAdminID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.Enterprise.IsPrimaryOwner {
-			rr, err := enterpriseRoleResource(ctx, OrganizationPrimaryOwnerID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-		if user.Enterprise.IsOwner {
-			rr, err := enterpriseRoleResource(ctx, OrganizationOwnerID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-		if user.Enterprise.IsAdmin {
-			rr, err := enterpriseRoleResource(ctx, OrganizationAdminID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 		}
 
 		// confused about Workspace vs Workspace Role? check this link:
