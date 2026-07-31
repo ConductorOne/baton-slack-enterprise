@@ -57,8 +57,6 @@ func (o *userResourceType) scimUserResource(ctx context.Context, user enterprise
 	}
 
 	userTraitOptions := []resource.UserTraitOption{
-		resource.WithUserProfile(profile),
-		resource.WithStatus(userStatus),
 		resource.WithUserLogin(user.UserName),
 	}
 	userTraitOptions = append(userTraitOptions, emails...)
@@ -75,6 +73,8 @@ func (o *userResourceType) scimUserResource(ctx context.Context, user enterprise
 		resourceTypeUser,
 		user.ID,
 		userTraitOptions,
+		resource.WithResourceProfile(profile),
+		resource.WithResourceStatus(v2.Status_ResourceStatus(userStatus), ""),
 	)
 }
 
@@ -110,9 +110,7 @@ func userResource(
 	}
 
 	userTraitOptions := []resource.UserTraitOption{
-		resource.WithUserProfile(profile),
 		resource.WithEmail(user.Profile.Email, true),
-		resource.WithStatus(userStatus),
 	}
 
 	if user.IsBot {
@@ -137,6 +135,8 @@ func userResource(
 		resourceTypeUser,
 		user.ID,
 		userTraitOptions,
+		resource.WithResourceProfile(profile),
+		resource.WithResourceStatus(v2.Status_ResourceStatus(userStatus), ""),
 		resource.WithParentResourceID(parentResourceID),
 	)
 }
