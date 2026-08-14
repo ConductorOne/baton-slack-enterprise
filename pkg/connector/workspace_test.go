@@ -19,7 +19,7 @@ func newTestWorkspaceBuilder() (*workspaceResourceType, *enterprise.MockSlackEnt
 	mockSlackClient := slack.Client{}
 	mockEnterpriseService := &enterprise.MockSlackEnterpriseService{}
 
-	builder := workspaceBuilder(&mockSlackClient, "test-enterprise", &mockEnterpriseClient)
+	builder := workspaceBuilder(&mockSlackClient, "test-enterprise", &mockEnterpriseClient, false, false)
 
 	// Replace the Enterprise service with our mock.
 	builder.enterpriseService = mockEnterpriseService

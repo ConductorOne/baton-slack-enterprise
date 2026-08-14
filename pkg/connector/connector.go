@@ -18,11 +18,14 @@ import (
 )
 
 type Slack struct {
-	client           *slack.Client
-	apiKey           string
-	enterpriseClient *enterprise.Client
-	enterpriseID     string
-	govEnv           bool
+	client *slack.Client
+	apiKey string
+	// See workspaceResourceType for why these are stored inverted.
+	skipWorkspaceRoleResourceType  bool
+	skipEnterpriseRoleResourceType bool
+	enterpriseClient               *enterprise.Client
+	enterpriseID                   string
+	govEnv                         bool
 }
 
 const govSlackApiUrl = "https://api.slack-gov.com/api/"
@@ -177,6 +180,10 @@ func New(ctx context.Context, config *cfg.SlackEnterprise, opts *cli.ConnectorOp
 		return nil, nil, err
 	}
 
+	// nil opts means no filter, so nothing is skipped.
+	cb.skipWorkspaceRoleResourceType = opts != nil && !opts.WillSyncResourceType(resourceTypeWorkspaceRole.Id)
+	cb.skipEnterpriseRoleResourceType = opts != nil && !opts.WillSyncResourceType(resourceTypeEnterpriseRole.Id)
+
 	builderOpts := []connectorbuilder.Opt{}
 	return cb, builderOpts, nil
 }
@@ -184,7 +191,7 @@ func New(ctx context.Context, config *cfg.SlackEnterprise, opts *cli.ConnectorOp
 func (s *Slack) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncerV2 {
 	return []connectorbuilder.ResourceSyncerV2{
 		userBuilder(s.client, s.enterpriseID, s.enterpriseClient),
-		workspaceBuilder(s.client, s.enterpriseID, s.enterpriseClient),
+		workspaceBuilder(s.client, s.enterpriseID, s.enterpriseClient, s.skipWorkspaceRoleResourceType, s.skipEnterpriseRoleResourceType),
 		userGroupBuilder(s.enterpriseID, s.enterpriseClient),
 		workspaceRoleBuilder(s.client, s.enterpriseID, s.enterpriseClient),
 		enterpriseRoleBuilder(s.enterpriseID, s.enterpriseClient),

@@ -28,6 +28,12 @@ type workspaceResourceType struct {
 	enterpriseID      string
 	enterpriseService enterprise.SlackEnterpriseService
 	enterpriseClient  *enterprise.Client
+	// skip*ResourceType report whether the cross-type targets of Grants are
+	// excluded from the sync filter. Named for the skip condition so the zero
+	// value is safe: main.go registers a zero-value Slack{} as the
+	// capabilities factory.
+	skipWorkspaceRoleResourceType  bool
+	skipEnterpriseRoleResourceType bool
 }
 
 func (o *workspaceResourceType) ResourceType(_ context.Context) *v2.ResourceType {
@@ -38,13 +44,17 @@ func workspaceBuilder(
 	client *slack.Client,
 	enterpriseID string,
 	enterpriseClient *enterprise.Client,
+	skipWorkspaceRoleResourceType bool,
+	skipEnterpriseRoleResourceType bool,
 ) *workspaceResourceType {
 	return &workspaceResourceType{
-		resourceType:      resourceTypeWorkspace,
-		client:            client,
-		enterpriseID:      enterpriseID,
-		enterpriseClient:  enterpriseClient,
-		enterpriseService: enterprise.NewSlackEnterpriseService(enterpriseClient),
+		resourceType:                   resourceTypeWorkspace,
+		client:                         client,
+		enterpriseID:                   enterpriseID,
+		enterpriseClient:               enterpriseClient,
+		enterpriseService:              enterprise.NewSlackEnterpriseService(enterpriseClient),
+		skipWorkspaceRoleResourceType:  skipWorkspaceRoleResourceType,
+		skipEnterpriseRoleResourceType: skipEnterpriseRoleResourceType,
 	}
 }
 
@@ -185,90 +195,97 @@ func (o *workspaceResourceType) Grants(
 			return nil, nil, err
 		}
 
-		if user.IsPrimaryOwner {
-			rr, err := roleResource(ctx, PrimaryOwnerRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsOwner {
-			rr, err := roleResource(ctx, OwnerRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsAdmin {
-			rr, err := roleResource(ctx, AdminRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsRestricted {
-			if user.IsUltraRestricted {
-				rr, err := roleResource(ctx, SingleChannelGuestRoleID, resource.Id)
-				if err != nil {
-					return nil, nil, err
-				}
-				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-			} else {
-				rr, err := roleResource(ctx, MultiChannelGuestRoleID, resource.Id)
+		// Cross-type workspace_role grants, emitted here as an optimization.
+		if !o.skipWorkspaceRoleResourceType {
+			if user.IsPrimaryOwner {
+				rr, err := roleResource(ctx, PrimaryOwnerRoleID, resource.Id)
 				if err != nil {
 					return nil, nil, err
 				}
 				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
+
+			if user.IsOwner {
+				rr, err := roleResource(ctx, OwnerRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if user.IsAdmin {
+				rr, err := roleResource(ctx, AdminRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if user.IsRestricted {
+				if user.IsUltraRestricted {
+					rr, err := roleResource(ctx, SingleChannelGuestRoleID, resource.Id)
+					if err != nil {
+						return nil, nil, err
+					}
+					rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+				} else {
+					rr, err := roleResource(ctx, MultiChannelGuestRoleID, resource.Id)
+					if err != nil {
+						return nil, nil, err
+					}
+					rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+				}
+			}
+
+			if user.IsInvitedUser {
+				rr, err := roleResource(ctx, InvitedMemberRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if !user.IsRestricted && !user.IsUltraRestricted && !user.IsInvitedUser && !user.IsBot && !user.Deleted {
+				rr, err := roleResource(ctx, MemberRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
+
+			if user.IsBot {
+				rr, err := roleResource(ctx, BotRoleID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
+			}
 		}
 
-		if user.IsInvitedUser {
-			rr, err := roleResource(ctx, InvitedMemberRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
+		// Same for enterprise_role. The workspace member grant below is this
+		// type's own, so neither guard can short-circuit the whole loop.
+		if !o.skipEnterpriseRoleResourceType {
+			if user.Enterprise.IsPrimaryOwner {
+				rr, err := enterpriseRoleResource(ctx, OrganizationPrimaryOwnerID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if !user.IsRestricted && !user.IsUltraRestricted && !user.IsInvitedUser && !user.IsBot && !user.Deleted {
-			rr, err := roleResource(ctx, MemberRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
+			if user.Enterprise.IsOwner {
+				rr, err := enterpriseRoleResource(ctx, OrganizationOwnerID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.IsBot {
-			rr, err := roleResource(ctx, BotRoleID, resource.Id)
-			if err != nil {
-				return nil, nil, err
+			if user.Enterprise.IsAdmin {
+				rr, err := enterpriseRoleResource(ctx, OrganizationAdminID, resource.Id)
+				if err != nil {
+					return nil, nil, err
+				}
+				rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-
-		if user.Enterprise.IsPrimaryOwner {
-			rr, err := enterpriseRoleResource(ctx, OrganizationPrimaryOwnerID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-		if user.Enterprise.IsOwner {
-			rr, err := enterpriseRoleResource(ctx, OrganizationOwnerID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
-		}
-		if user.Enterprise.IsAdmin {
-			rr, err := enterpriseRoleResource(ctx, OrganizationAdminID, resource.Id)
-			if err != nil {
-				return nil, nil, err
-			}
-			rv = append(rv, grant.NewGrant(rr, RoleAssignmentEntitlement, userID))
 		}
 
 		// confused about Workspace vs Workspace Role? check this link:
