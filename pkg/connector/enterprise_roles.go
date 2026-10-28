@@ -2,7 +2,9 @@ package connector
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -10,8 +12,10 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	resources "github.com/conductorone/baton-sdk/pkg/types/resource"
 
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/conductorone/baton-slack-enterprise/pkg"
 	enterprise "github.com/conductorone/baton-slack-enterprise/pkg/connector/client"
+	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -254,6 +258,21 @@ func (o *enterpriseRoleType) Grants(
 	return rv, &resources.SyncOpResults{NextPageToken: pageToken, Annotations: outputAnnotations}, nil
 }
 
+// orgRoleToWorkspaceRole maps an organization role ID to the workspace role
+// word accepted by admin.users.setAdmin/setOwner. Note that "" (RegularRoleID)
+// resolves to admin.users.setRegular via getWorkspaceUrlPathByRole; revoke
+// callers pass RegularRoleID explicitly to downgrade either org role.
+func orgRoleToWorkspaceRole(roleID string) string {
+	switch roleID {
+	case OrganizationAdminID:
+		return AdminRoleID
+	case OrganizationOwnerID:
+		return OwnerRoleID
+	default:
+		return RegularRoleID
+	}
+}
+
 // getTeamIDForUser retrieves the team ID for a user by calling the Slack API directly.
 func (o *enterpriseRoleType) getTeamIDForUser(ctx context.Context, userID string) (string, *v2.RateLimitDescription, error) {
 	user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
@@ -280,6 +299,48 @@ func (o *enterpriseRoleType) Grant(
 	userID := principal.Id.Resource
 
 	outputAnnotations := annotations.New()
+
+	if _, ok := organizationRoles[roleID]; ok {
+		// Organization-level roles are granted via the org-level admin API
+		// (admin.users.setAdmin/setOwner), not via admin.roles.addAssignments.
+		// Guard order is locked: the empty-enterpriseID guard precedes the
+		// primary-owner refusal, and both precede any HTTP call.
+		if o.enterpriseID == "" {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.InvalidArgument,
+				"baton-slack-enterprise: enterprise ID is required to grant or revoke organization-level roles",
+				errors.New("connector was constructed without an enterprise ID"),
+			)
+		}
+
+		if roleID == OrganizationPrimaryOwnerID {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.PermissionDenied,
+				"baton-slack-enterprise: organization_primary_owner cannot be granted or revoked via the Slack API",
+				errors.New("slack disallows modifying the primary owner"),
+			)
+		}
+
+		// Order matters (GO-P-062/GO-A-018): WHERE (org, not the user's home team), WHO, WHAT (the role WORD, not the enterprise role ID).
+		orgID := o.enterpriseID                             // WHERE — the org, not the user's home team
+		userToSet := principal.Id.Resource                  // WHO
+		workspaceRoleWord := orgRoleToWorkspaceRole(roleID) // WHAT — "admin"/"owner" — never organization_admin
+		ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, workspaceRoleWord)
+		outputAnnotations.WithRateLimiting(ratelimitData)
+		if err != nil {
+			if roleID == OrganizationAdminID && strings.Contains(err.Error(), "already_admin") {
+				outputAnnotations.Append(&v2.GrantAlreadyExists{})
+				return outputAnnotations, nil
+			}
+			if roleID == OrganizationOwnerID && strings.Contains(err.Error(), "already_owner") {
+				outputAnnotations.Append(&v2.GrantAlreadyExists{})
+				return outputAnnotations, nil
+			}
+			return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to set enterprise role %s for user %s: %w", roleID, userID, err)
+		}
+
+		return outputAnnotations, nil
+	}
 
 	// Get team ID by calling the API directly
 	teamID, ratelimitData, err := o.getTeamIDForUser(ctx, userID)
@@ -308,6 +369,43 @@ func (o *enterpriseRoleType) Revoke(
 	userID := grant.Principal.Id.Resource
 
 	outputAnnotations := annotations.New()
+
+	if _, ok := organizationRoles[roleID]; ok {
+		// Organization-level roles are revoked via the org-level admin API.
+		// Guard order is locked: the empty-enterpriseID guard precedes the
+		// primary-owner refusal, and both precede any HTTP call.
+		if o.enterpriseID == "" {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.InvalidArgument,
+				"baton-slack-enterprise: enterprise ID is required to grant or revoke organization-level roles",
+				errors.New("connector was constructed without an enterprise ID"),
+			)
+		}
+
+		if roleID == OrganizationPrimaryOwnerID {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.PermissionDenied,
+				"baton-slack-enterprise: organization_primary_owner cannot be granted or revoked via the Slack API",
+				errors.New("slack disallows modifying the primary owner"),
+			)
+		}
+
+		// Order matters (GO-P-062/GO-A-018): WHERE (org, not the user's home team), WHO, WHAT (the role WORD, not the enterprise role ID).
+		orgID := o.enterpriseID                  // WHERE — the org, not the user's home team
+		userToSet := grant.Principal.Id.Resource // WHO
+		workspaceRoleWord := RegularRoleID       // WHAT — "" downgrades BOTH org roles to admin.users.setRegular (getWorkspaceUrlPathByRole's "" arm); never the org roleID
+		ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, workspaceRoleWord)
+		outputAnnotations.WithRateLimiting(ratelimitData)
+		if err != nil {
+			if strings.Contains(err.Error(), "already_regular") || strings.Contains(err.Error(), "invalid_role_for_user") {
+				outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+				return outputAnnotations, nil
+			}
+			return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to revoke enterprise role %s from user %s: %w", roleID, userID, err)
+		}
+
+		return outputAnnotations, nil
+	}
 
 	// Get team ID by calling the API directly
 	teamID, ratelimitData, err := o.getTeamIDForUser(ctx, userID)
