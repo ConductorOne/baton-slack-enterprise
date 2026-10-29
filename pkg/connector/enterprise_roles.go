@@ -325,6 +325,25 @@ func (o *enterpriseRoleType) Grant(
 		orgID := o.enterpriseID                             // WHERE — the org, not the user's home team
 		userToSet := principal.Id.Resource                  // WHO
 		workspaceRoleWord := orgRoleToWorkspaceRole(roleID) // WHAT — "admin"/"owner" — never organization_admin
+		// Ownership precheck (deep-review F2): the read path emits BOTH org
+		// grants for every owner, so granting an org role to a current owner
+		// is realistic already-in-state. A user who holds ownership also holds
+		// the admin role (Slack org owners are admins), so granting either org
+		// role to a current owner would demote them (setAdmin) or rely on
+		// undocumented no-op behavior (setOwner). Report GrantAlreadyExists
+		// and skip the write entirely.
+		if roleID == OrganizationAdminID || roleID == OrganizationOwnerID {
+			user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
+			outputAnnotations.WithRateLimiting(ratelimitData)
+			if err != nil {
+				return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user info for user %s before granting enterprise role %s: %w", userID, roleID, err)
+			}
+			if user != nil && user.Enterprise.IsOwner {
+				outputAnnotations.Append(&v2.GrantAlreadyExists{})
+				return outputAnnotations, nil
+			}
+		}
+
 		ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, workspaceRoleWord)
 		outputAnnotations.WithRateLimiting(ratelimitData)
 		if err != nil {
@@ -448,7 +467,13 @@ func (o *enterpriseRoleType) Revoke(
 		ratelimitData, err = o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, RegularRoleID)
 		outputAnnotations.WithRateLimiting(ratelimitData)
 		if err != nil {
-			if strings.Contains(err.Error(), "already_regular") || strings.Contains(err.Error(), "invalid_role_for_user") {
+			// already_regular means the user is already regular, so there is
+			// no admin role left to revoke. invalid_role_for_user (Slack:
+			// "the user's current role does not allow this change") is a
+			// REFUSAL, not an already-in-state signal — it fails closed
+			// through the wrapped-error return below (deep-review F1 /
+			// BUGBOT §12 fail-closed semantics).
+			if strings.Contains(err.Error(), "already_regular") {
 				outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
 				return outputAnnotations, nil
 			}

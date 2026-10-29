@@ -324,7 +324,8 @@ func TestEnterpriseRoleGrant_IdempotentAlreadyExists(t *testing.T) {
 // T7: idempotent revokes, per-arm (judge thread 4407347809). Owner-revoke arm
 // (setAdmin): already_admin means the user is not an owner, so the owner role
 // is already gone → GrantAlreadyRevoked. Admin-revoke arm (setRegular):
-// already_regular and invalid_role_for_user both yield GrantAlreadyRevoked.
+// already_regular yields GrantAlreadyRevoked; invalid_role_for_user is a
+// REFUSAL and fails closed (deep-review F1, see TestEnterpriseRoleRevoke_AdminOnInvalidRoleFailClosed).
 func TestEnterpriseRoleRevoke_IdempotentAlreadyRevoked(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {
@@ -333,7 +334,6 @@ func TestEnterpriseRoleRevoke_IdempotentAlreadyRevoked(t *testing.T) {
 	}{
 		{OrganizationOwnerID, "already_admin"},
 		{OrganizationAdminID, "already_regular"},
-		{OrganizationAdminID, "invalid_role_for_user"},
 	} {
 		t.Run(tc.roleID+"/"+tc.slackErr, func(t *testing.T) {
 			g := newGuardServer(t)
@@ -351,6 +351,52 @@ func TestEnterpriseRoleRevoke_IdempotentAlreadyRevoked(t *testing.T) {
 			ann, err := b.Revoke(ctx, guardRevokeInput(tc.roleID))
 			require.NoError(t, err)
 			require.True(t, ann.Contains(&v2.GrantAlreadyRevoked{}))
+		})
+	}
+}
+
+// T7c (deep-review F1): invalid_role_for_user on admin.users.setRegular is a
+// REFUSAL of the demotion ("the user's current role does not allow this
+// change"), NOT an already-in-state signal — the admin-revoke arm must fail
+// closed instead of reporting GrantAlreadyRevoked while the role persists.
+func TestEnterpriseRoleRevoke_AdminOnInvalidRoleFailClosed(t *testing.T) {
+	ctx := context.Background()
+	g := newGuardServer(t)
+	g.mu.Lock()
+	g.cannedError = []byte(`{"ok":false,"error":"invalid_role_for_user"}`)
+	g.mu.Unlock()
+	b := newGuardBuilder(t, g, guardTestOrgID)
+
+	ann, err := b.Revoke(ctx, guardRevokeInput(OrganizationAdminID))
+	require.Error(t, err)
+	require.False(t, ann.Contains(&v2.GrantAlreadyRevoked{}))
+}
+
+// T9 (deep-review F2): granting an org role to a current OWNER is realistic
+// already-in-state (the read path emits BOTH org grants for every owner), so
+// both grant org arms pre-check ownership via users.info and return
+// GrantAlreadyExists with ZERO write calls — setAdmin on an owner would
+// demote them, and setOwner on an owner relies on undocumented no-op
+// behavior.
+func TestEnterpriseRoleGrant_OwnerGrantOnOwnerAlreadyExists(t *testing.T) {
+	ctx := context.Background()
+	for _, roleID := range []string{OrganizationAdminID, OrganizationOwnerID} {
+		t.Run(roleID, func(t *testing.T) {
+			g := newGuardServer(t)
+			g.mu.Lock()
+			g.cannedUserInfo = []byte(`{"ok":true,"user":{"id":"U1","profile":{"team":"T123"},"enterprise_user":{"is_owner":true}}}`)
+			g.mu.Unlock()
+			b := newGuardBuilder(t, g, guardTestOrgID)
+
+			principal, ent := guardGrantInput(roleID)
+			ann, err := b.Grant(ctx, principal, ent)
+			require.NoError(t, err)
+			require.True(t, ann.Contains(&v2.GrantAlreadyExists{}))
+
+			paths := g.paths(t)
+			require.Contains(t, paths, "/api/users.info")
+			require.NotContains(t, paths, "/api/admin.users.setAdmin")
+			require.NotContains(t, paths, "/api/admin.users.setOwner")
 		})
 	}
 }
