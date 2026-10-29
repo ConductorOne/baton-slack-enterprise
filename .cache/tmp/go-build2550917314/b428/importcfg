@@ -1,0 +1,5 @@
+# import config
+packagefile github.com/maypok86/otter/v2/internal/generated/node=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b421/_pkg_.a
+packagefile github.com/maypok86/otter/v2/internal/xruntime=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b424/_pkg_.a
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d

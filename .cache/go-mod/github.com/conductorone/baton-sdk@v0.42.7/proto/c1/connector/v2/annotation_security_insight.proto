@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package c1.connector.v2;
+
+import "c1/connector/v2/resource.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/conductorone/baton-sdk/pb/c1/connector/v2";
+
+// RiskFactor represents a contributing factor to a risk score.
+message RiskFactor {
+  enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    SEVERITY_LOW = 1;
+    SEVERITY_MEDIUM = 2;
+    SEVERITY_HIGH = 3;
+    SEVERITY_CRITICAL = 4;
+  }
+
+  string description = 1 [(validate.rules).string = {
+    min_bytes: 1
+    max_bytes: 4096
+  }];
+
+  Severity severity = 2;
+}
+
+// RiskScore represents a risk score insight
+message RiskScore {
+  // Deprecated: Use source_score instead. The raw risk score value from the source system.
+  string value = 1 [deprecated = true];
+
+  // Deprecated: Use risk_factors instead. Flat string factors.
+  repeated string factors = 2 [deprecated = true];
+
+  // Normalized risk score as a percentage [0, 100]. Higher means more risk.
+  // Connector authors must normalize their source system's score to this range.
+  uint32 normalized_score = 3 [(validate.rules).uint32 = {
+    gte: 0
+    lte: 100
+  }];
+
+  // The original score from the source system for reference/auditability (e.g., "0.48", "7.5/10").
+  string source_score = 4;
+
+  // Structured factors contributing to this risk score.
+  repeated RiskFactor risk_factors = 5;
+}
+
+// Issue represents a security issue or vulnerability
+message Issue {
+  // The issue description or severity (e.g., "Critical", "CVE-2024-1234")
+  string value = 1;
+  string severity = 2 [(validate.rules).string = {
+    min_bytes: 0
+    max_bytes: 1024
+  }];
+}
+
+// SecurityInsightTrait is the trait annotation for resources with TRAIT_SECURITY_INSIGHT.
+// It contains the metadata for the security insight including type, value, observation time,
+// and the target entity (user or resource) that this insight should be bound to.
+message SecurityInsightTrait {
+  // The type and value of the insight
+  oneof insight_type {
+    option (validate.required) = true;
+    RiskScore risk_score = 1;
+    Issue issue = 2;
+  }
+
+  // When this insight was observed/captured from the source system
+  google.protobuf.Timestamp observed_at = 3;
+
+  // The target entity this insight should be bound to
+  oneof target {
+    option (validate.required) = true;
+    // For binding to a C1 User by email address
+    UserTarget user = 4;
+    // For direct reference to a resource the connector knows about
+    c1.connector.v2.ResourceId resource_id = 5;
+    // For binding to an AppResource by external ID
+    ExternalResourceTarget external_resource = 6;
+    // For binding to an AppUser by email address
+    AppUserTarget app_user = 7;
+  }
+
+  // UserTarget identifies a user by email for resolution to a C1 User
+  message UserTarget {
+    string email = 1 [(validate.rules).string = {
+      min_bytes: 1
+      max_bytes: 1024
+      email: true
+    }];
+  }
+
+  // AppUserTarget identifies a user by email for resolution to an AppUser.
+  message AppUserTarget {
+    string email = 1 [(validate.rules).string = {
+      min_bytes: 1
+      max_bytes: 1024
+      email: true
+    }];
+    // The external identifier of the user (e.g., ID, GUID, etc.)
+    string external_id = 2 [(validate.rules).string = {
+      min_bytes: 1
+      max_bytes: 4096
+    }];
+  }
+
+  // ExternalResourceTarget identifies a resource by external ID for resolution to an AppResource.
+  // Use this when the connector doesn't sync the target resource itself.
+  message ExternalResourceTarget {
+    // The external identifier of the resource (e.g., ARN, GUID, etc.)
+    string external_id = 1 [(validate.rules).string = {
+      min_bytes: 1
+      max_bytes: 4096
+    }];
+    // Optional hint to help find the owning app (e.g., "aws", "github")
+    string app_hint = 2 [(validate.rules).string = {
+      max_bytes: 1024
+      ignore_empty: true
+    }];
+  }
+}

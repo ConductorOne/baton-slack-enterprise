@@ -1,0 +1,129 @@
+version: "2"
+run:
+  build-tags:
+    - baton_lambda_support
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gochecknoinits
+    - gocritic
+    - godot
+    - goprintffuncname
+    - gosec
+    - govet
+    - ineffassign
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - predeclared
+    - revive
+    - staticcheck
+    - tparallel
+    - unconvert
+    - unused
+    - usestdlibvars
+    - whitespace
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    gocritic:
+      settings:
+        underef:
+          skipRecvDeref: false
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+    nakedret:
+      max-func-lines: 0
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-no-explanation:
+        - forbidigo
+        - tracecheck
+        - gomnd
+        - gochecknoinits
+        - makezero
+    revive:
+      severity: error
+      rules:
+        - name: atomic
+        - name: line-length-limit
+          arguments:
+            - 200
+        - name: unhandled-error
+          arguments:
+            - fmt.Printf
+            - fmt.Println
+            - fmt.Fprint
+            - fmt.Fprintf
+            - fmt.Fprintln
+            - os.Stderr.Sync
+            - sb.WriteString
+            - buf.WriteString
+            - hasher.Write
+            - os.Setenv
+            - os.RemoveAll
+            # bytes.Buffer writes are documented to never return an error.
+            - bytes.Buffer.Write
+            - bytes.Buffer.WriteByte
+        - name: var-naming
+          arguments:
+            - - ID
+              - URL
+              - HTTP
+              - API
+            - []
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - godot
+        source: (TODO)
+      # NewC1ZFile is deprecated in favor of the multi-engine NewStore, but tests
+      # still exercise the SQLite-only constructor and its concrete *C1File methods.
+      - linters:
+          - staticcheck
+        path: _test\.go
+        text: 'SA1019: dotc1z.NewC1ZFile is deprecated'
+      # Tests intentionally exercise deprecated fields (e.g. trait-level
+      # profile/icon/status/created_at) to cover backwards compatibility with
+      # data written by older connectors.
+      - linters:
+          - staticcheck
+        path: _test\.go
+        text: "SA1019"
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-same-issues: 50
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

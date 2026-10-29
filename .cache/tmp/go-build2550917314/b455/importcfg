@@ -1,0 +1,5 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile go.opentelemetry.io/otel/attribute=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b385/_pkg_.a
+packagefile go.opentelemetry.io/otel/metric/embedded=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b456/_pkg_.a
+packagefile slices=/data/squire/cache/go/plaid-cache/blob/output/47/4785913ebabf44c318a2a46c54a2ff2aa0221066947d3c37c756c87472364351

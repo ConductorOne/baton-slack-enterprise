@@ -1,0 +1,13 @@
+# import config
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile google.golang.org/grpc/grpclog=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b253/_pkg_.a
+packagefile google.golang.org/grpc/internal/envconfig=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b258/_pkg_.a
+packagefile google.golang.org/grpc/internal/proxyattributes=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b299/_pkg_.a
+packagefile google.golang.org/grpc/internal/transport=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b300/_pkg_.a
+packagefile google.golang.org/grpc/internal/transport/networktype=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b314/_pkg_.a
+packagefile google.golang.org/grpc/resolver=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b264/_pkg_.a
+packagefile google.golang.org/grpc/serviceconfig=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b260/_pkg_.a
+packagefile net=/data/squire/cache/go/plaid-cache/blob/output/58/5839eb060d2840a2cc6d260887716229f5e33072ed108b40e361dbe56b4208c3
+packagefile net/http=/data/squire/cache/go/plaid-cache/blob/output/20/2037ea6cf81b9f52a01faf8e04aa0163882c2e84490e957e244d4aaa7ba3da42
+packagefile net/url=/data/squire/cache/go/plaid-cache/blob/output/6c/6c26ba578b4d5a5695a5a7eb992e5505def98ff5af85ef322a8f801eb013fb06
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f

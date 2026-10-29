@@ -1,0 +1,41 @@
+.idea
+.DS_Store
+
+# Binaries for programs and plugins
+/baton
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+build/
+*.c1z
+*.db
+*.csv
+*.xlsx
+
+build/
+dist/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+/.pre-commit-config.yaml
+
+.claude/settings.local.json
+
+*.map
+
+# Local profiling output and benchmark fixtures (pprof files, prebuilt
+# compaction fixture trees referenced via BATON_COMPACTION_COMPARE_FIXTURES_DIR).
+.profiles/
+
+# Working docs / presentation material stay local: they may reference
+# specific tenants and their data shapes, which must not enter this
+# public repository (see CLAUDE.md content guidelines).
+docs/tasks/

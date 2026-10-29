@@ -1,0 +1,7 @@
+# import config
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile google.golang.org/grpc/internal=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b259/_pkg_.a
+packagefile math/bits=/data/squire/cache/go/plaid-cache/blob/output/22/2289e9cb34a81c529e26bc41d8d740a2a1bfc225e7b497cd248fc913e942e783
+packagefile slices=/data/squire/cache/go/plaid-cache/blob/output/47/4785913ebabf44c318a2a46c54a2ff2aa0221066947d3c37c756c87472364351
+packagefile sort=/data/squire/cache/go/plaid-cache/blob/output/6f/6f1bed9c19f4786981e4ad5b1d3abcd2adad02438cac67a1774857ce57c9479e
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f

@@ -1,0 +1,5 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile encoding/json=/data/squire/cache/go/plaid-cache/blob/output/fc/fce6d6edf4fa7fbaf44ed26065c208faa908534a52879dc164fcd24e16078b5c
+packagefile github.com/hashicorp/hcl=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b812/_pkg_.a
+packagefile github.com/hashicorp/hcl/hcl/printer=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b821/_pkg_.a

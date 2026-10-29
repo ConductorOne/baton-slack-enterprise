@@ -1,0 +1,12 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile github.com/cockroachdb/errors=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b580/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/base=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b647/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/constants=/data/squire/cache/go/plaid-cache/blob/output/d3/d3ac4f7a41190bc680200b35a3ae42b72a78ba99162f2ce8e2243744c23055cf
+packagefile github.com/cockroachdb/pebble/v2/internal/invariants=/data/squire/cache/go/plaid-cache/blob/output/10/101330f93f3270c93c055dd6e94632866c493b4e4a3f8edb14a5bb29e716e231
+packagefile github.com/cockroachdb/pebble/v2/internal/treeprinter=/data/squire/cache/go/plaid-cache/blob/output/5f/5f75bc8f9387479bb125ded8734ae7c234a469b79bb060bf77cfd4ed99144aae
+packagefile math=/data/squire/cache/go/plaid-cache/blob/output/43/43dc63cf2c06d304dad5ab9f33e1bff687bd395b2c5257d734b34bcbe3848129
+packagefile math/rand/v2=/data/squire/cache/go/plaid-cache/blob/output/57/5780f7ebd28098ee21f168b1ea502061568f30d44beb74d0da497926d1c92d0a
+packagefile runtime=/data/squire/cache/go/plaid-cache/blob/output/52/52ab39af02f3aaf633a15cbafb61d12594116940228a1d5934d0a5f3dfc681a8
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d

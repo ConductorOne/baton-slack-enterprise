@@ -1,0 +1,4 @@
+# import config
+packagefile github.com/cockroachdb/errors=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b573/_pkg_.a
+packagefile github.com/cockroachdb/errors/errbase=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b575/_pkg_.a
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a

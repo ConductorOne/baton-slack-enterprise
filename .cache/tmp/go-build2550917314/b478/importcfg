@@ -1,0 +1,7 @@
+# import config
+packagefile github.com/go-logr/logr=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b479/_pkg_.a
+packagefile go.opentelemetry.io/otel/internal/global=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b480/_pkg_.a
+packagefile go.opentelemetry.io/otel/log=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b487/_pkg_.a
+packagefile go.opentelemetry.io/otel/metric=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b455/_pkg_.a
+packagefile go.opentelemetry.io/otel/propagation=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b489/_pkg_.a
+packagefile go.opentelemetry.io/otel/trace=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b384/_pkg_.a

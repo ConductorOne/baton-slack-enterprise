@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package c1.connector.v2;
+
+import "c1/connector/v2/entitlement.proto";
+import "c1/connector/v2/resource.proto";
+import "google/protobuf/any.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/conductorone/baton-sdk/pb/c1/connector/v2";
+
+service GrantsService {
+  rpc ListGrants(GrantsServiceListGrantsRequest) returns (GrantsServiceListGrantsResponse);
+}
+
+message GrantSources {
+  message GrantSource {
+    bool is_direct = 1;
+  }
+  map<string, GrantSource> sources = 1;
+}
+
+message Grant {
+  c1.connector.v2.Entitlement entitlement = 1 [(validate.rules).message = {required: true}];
+  c1.connector.v2.Resource principal = 2 [(validate.rules).message = {required: true}];
+  // These ids may not map one to one with the grant itself.
+  string id = 3 [(validate.rules).string = {
+    min_bytes: 1
+    max_bytes: 1024
+  }];
+  GrantSources sources = 5 [(validate.rules).message = {required: false}];
+  repeated google.protobuf.Any annotations = 4;
+}
+
+message GrantsServiceListGrantsRequest {
+  c1.connector.v2.Resource resource = 1 [(validate.rules).message = {required: true}];
+  uint32 page_size = 2 [(validate.rules).uint32 = {
+    ignore_empty: true
+    lte: 250
+  }];
+  string page_token = 3 [(validate.rules).string = {
+    ignore_empty: true
+    min_bytes: 1
+    max_bytes: 1048576 // 1MB
+  }];
+  repeated google.protobuf.Any annotations = 4;
+  string active_sync_id = 5 [(validate.rules).string = {
+    ignore_empty: true
+    min_bytes: 1
+    max_bytes: 1024
+  }];
+}
+
+message GrantsServiceListGrantsResponse {
+  repeated Grant list = 1;
+  string next_page_token = 2 [(validate.rules).string = {
+    ignore_empty: true
+    min_bytes: 1
+    max_bytes: 1048576 // 1MB
+  }];
+  repeated google.protobuf.Any annotations = 3;
+}
+
+service GrantManagerService {
+  rpc Grant(GrantManagerServiceGrantRequest) returns (GrantManagerServiceGrantResponse);
+  rpc Revoke(GrantManagerServiceRevokeRequest) returns (GrantManagerServiceRevokeResponse);
+}
+
+message GrantManagerServiceGrantRequest {
+  c1.connector.v2.Entitlement entitlement = 1 [(validate.rules).message = {required: true}];
+  c1.connector.v2.Resource principal = 2 [(validate.rules).message = {required: true}];
+  repeated google.protobuf.Any annotations = 3;
+}
+
+message GrantManagerServiceGrantResponse {
+  repeated google.protobuf.Any annotations = 1;
+  repeated Grant grants = 2;
+}
+
+message GrantManagerServiceRevokeRequest {
+  Grant grant = 1 [(validate.rules).message = {required: true}];
+  repeated google.protobuf.Any annotations = 2;
+}
+
+message GrantManagerServiceRevokeResponse {
+  repeated google.protobuf.Any annotations = 1;
+}

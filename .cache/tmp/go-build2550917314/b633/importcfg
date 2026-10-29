@@ -1,0 +1,7 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/cockroachdb/errors/errbase=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b575/_pkg_.a
+packagefile github.com/cockroachdb/errors/errorspb=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b576/_pkg_.a
+packagefile github.com/gogo/protobuf/proto=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b578/_pkg_.a

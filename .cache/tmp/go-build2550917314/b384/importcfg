@@ -1,0 +1,20 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile encoding/json=/data/squire/cache/go/plaid-cache/blob/output/fc/fce6d6edf4fa7fbaf44ed26065c208faa908534a52879dc164fcd24e16078b5c
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile go.opentelemetry.io/otel/attribute=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b385/_pkg_.a
+packagefile go.opentelemetry.io/otel/codes=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b389/_pkg_.a
+packagefile go.opentelemetry.io/otel/semconv/v1.43.0=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b390/_pkg_.a
+packagefile go.opentelemetry.io/otel/trace/embedded=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b391/_pkg_.a
+packagefile go.opentelemetry.io/otel/trace/internal/telemetry=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b392/_pkg_.a
+packagefile math=/data/squire/cache/go/plaid-cache/blob/output/43/43dc63cf2c06d304dad5ab9f33e1bff687bd395b2c5257d734b34bcbe3848129
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a
+packagefile reflect=/data/squire/cache/go/plaid-cache/blob/output/e2/e24be136b7a192c9dabc6525e9b825a53280f3bb305d349fbbe6df8418fed470
+packagefile runtime=/data/squire/cache/go/plaid-cache/blob/output/52/52ab39af02f3aaf633a15cbafb61d12594116940228a1d5934d0a5f3dfc681a8
+packagefile slices=/data/squire/cache/go/plaid-cache/blob/output/47/4785913ebabf44c318a2a46c54a2ff2aa0221066947d3c37c756c87472364351
+packagefile strconv=/data/squire/cache/go/plaid-cache/blob/output/57/57ef0660f82fb83bd3903faf663ec78130a56359b40bfd3362ebac2d540c6949
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d
+packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b
+packagefile unicode/utf8=/data/squire/cache/go/plaid-cache/blob/output/b3/b34b916c459ea3d0350f70ed8d1f99de233d64aecedef18e3e35850f7ea3117f

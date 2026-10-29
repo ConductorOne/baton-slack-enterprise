@@ -1,0 +1,4 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile google.golang.org/grpc/credentials=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b255/_pkg_.a
+packagefile net=/data/squire/cache/go/plaid-cache/blob/output/58/5839eb060d2840a2cc6d260887716229f5e33072ed108b40e361dbe56b4208c3

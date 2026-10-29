@@ -415,7 +415,7 @@ func (o *enterpriseRoleType) Revoke(
 				return outputAnnotations, nil
 			}
 
-			ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, AdminRoleID)
+			ratelimitData, err = o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, AdminRoleID)
 			outputAnnotations.WithRateLimiting(ratelimitData)
 			if err != nil {
 				// already_admin means the user is not an owner, so the owner

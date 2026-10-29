@@ -1,0 +1,22 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile google.golang.org/protobuf/encoding/protowire=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b065/_pkg_.a
+packagefile google.golang.org/protobuf/internal/descfmt=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b075/_pkg_.a
+packagefile google.golang.org/protobuf/internal/descopts=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b076/_pkg_.a
+packagefile google.golang.org/protobuf/internal/editiondefaults=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b077/_pkg_.a
+packagefile google.golang.org/protobuf/internal/encoding/defval=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b079/_pkg_.a
+packagefile google.golang.org/protobuf/internal/encoding/messageset=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b085/_pkg_.a
+packagefile google.golang.org/protobuf/internal/errors=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b066/_pkg_.a
+packagefile google.golang.org/protobuf/internal/genid=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b086/_pkg_.a
+packagefile google.golang.org/protobuf/internal/pragma=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b071/_pkg_.a
+packagefile google.golang.org/protobuf/internal/strs=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b082/_pkg_.a
+packagefile google.golang.org/protobuf/proto=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b087/_pkg_.a
+packagefile google.golang.org/protobuf/reflect/protoreflect=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b064/_pkg_.a
+packagefile google.golang.org/protobuf/reflect/protoregistry=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b090/_pkg_.a
+packagefile math=/data/squire/cache/go/plaid-cache/blob/output/43/43dc63cf2c06d304dad5ab9f33e1bff687bd395b2c5257d734b34bcbe3848129
+packagefile reflect=/data/squire/cache/go/plaid-cache/blob/output/e2/e24be136b7a192c9dabc6525e9b825a53280f3bb305d349fbbe6df8418fed470
+packagefile sort=/data/squire/cache/go/plaid-cache/blob/output/6f/6f1bed9c19f4786981e4ad5b1d3abcd2adad02438cac67a1774857ce57c9479e
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d

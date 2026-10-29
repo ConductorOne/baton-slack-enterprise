@@ -1,0 +1,8 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/hashicorp/hcl/hcl/token=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b814/_pkg_.a
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a
+packagefile regexp=/data/squire/cache/go/plaid-cache/blob/output/1f/1f55e02f6b242a0fa75b99fefc1ae1acf3939d6759274d09a3a1a46781272468
+packagefile unicode=/data/squire/cache/go/plaid-cache/blob/output/cd/cdd069af988d2e6e3f8069f3f36f1d956123f1818e5d7da50580c86cd29bacea
+packagefile unicode/utf8=/data/squire/cache/go/plaid-cache/blob/output/b3/b34b916c459ea3d0350f70ed8d1f99de233d64aecedef18e3e35850f7ea3117f

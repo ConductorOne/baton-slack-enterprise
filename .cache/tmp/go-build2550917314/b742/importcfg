@@ -1,0 +1,9 @@
+# import config
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/doug-martin/goqu/v9/internal/errors=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b743/_pkg_.a
+packagefile github.com/doug-martin/goqu/v9/internal/sb=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b744/_pkg_.a
+packagefile github.com/doug-martin/goqu/v9/internal/util=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b745/_pkg_.a
+packagefile reflect=/data/squire/cache/go/plaid-cache/blob/output/e2/e24be136b7a192c9dabc6525e9b825a53280f3bb305d349fbbe6df8418fed470
+packagefile regexp=/data/squire/cache/go/plaid-cache/blob/output/1f/1f55e02f6b242a0fa75b99fefc1ae1acf3939d6759274d09a3a1a46781272468
+packagefile sort=/data/squire/cache/go/plaid-cache/blob/output/6f/6f1bed9c19f4786981e4ad5b1d3abcd2adad02438cac67a1774857ce57c9479e
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2

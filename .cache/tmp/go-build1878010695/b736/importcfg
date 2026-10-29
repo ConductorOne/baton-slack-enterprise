@@ -1,0 +1,12 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile errors=/data/squire/cache/go/plaid-cache/blob/output/03/03d168ac7afe2a3da838ee7fa6cb91db838c2231295a6fb2c05f3bc0ad2c3dab
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/cockroachdb/pebble/v2=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b575/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/vfs=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b653/_pkg_.a
+packagefile github.com/conductorone/baton-sdk/pkg/dotc1z/engine/pebble/codec=/data/squire/cache/go/plaid-cache/blob/output/7b/7b49dbdb094aee35aef6282791c6176292a7d0049e4c6c9a869956e986d71796
+packagefile google.golang.org/protobuf/encoding/protowire=/data/squire/cache/go/plaid-cache/blob/output/e5/e5a43472c83a6933789703aea5255acf6ff0d3bf0d6fea4febf8663f15beb6e5
+packagefile io=/data/squire/cache/go/plaid-cache/blob/output/fd/fdb3d8f7c5942e0ac41c565df8b4f29d8af5354cca3c237a550e10ec326367c6
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d
+packagefile testing=/data/squire/cache/go/plaid-cache/blob/output/72/72febdec06b6cd60f23612c2f6349b1fd1a8399df50d3e240267915a9469c9c7

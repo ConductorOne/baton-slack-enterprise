@@ -1,0 +1,8 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile crypto/tls=/data/squire/cache/go/plaid-cache/blob/output/2e/2e5eabbad4d28572fa3ab6175197bc2e64b5ffd94beedb3e37e1bacded3f55bb
+packagefile crypto/x509=/data/squire/cache/go/plaid-cache/blob/output/b3/b3cac6831581d3c4a20b1a502a40b1a1b8f2cb030633568b7a66f94ec674bef5
+packagefile google.golang.org/grpc/grpclog=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b253/_pkg_.a
+packagefile net=/data/squire/cache/go/plaid-cache/blob/output/58/5839eb060d2840a2cc6d260887716229f5e33072ed108b40e361dbe56b4208c3
+packagefile net/url=/data/squire/cache/go/plaid-cache/blob/output/6c/6c26ba578b4d5a5695a5a7eb992e5505def98ff5af85ef322a8f801eb013fb06
+packagefile syscall=/data/squire/cache/go/plaid-cache/blob/output/f5/f5e5dc1a4088ac23e2fb12fac8c50c6dde96b769c641cc88f437e26608410075

@@ -1,0 +1,10 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile encoding/binary=/data/squire/cache/go/plaid-cache/blob/output/0a/0a2fe4470aad98e3e14586c1c99427010c273bcccacadf0645a06fb1ecb32c7f
+packagefile errors=/data/squire/cache/go/plaid-cache/blob/output/03/03d168ac7afe2a3da838ee7fa6cb91db838c2231295a6fb2c05f3bc0ad2c3dab
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/segmentio/ksuid=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b380/_pkg_.a
+packagefile google.golang.org/protobuf/proto=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b087/_pkg_.a
+packagefile google.golang.org/protobuf/reflect/protoreflect=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b064/_pkg_.a
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f

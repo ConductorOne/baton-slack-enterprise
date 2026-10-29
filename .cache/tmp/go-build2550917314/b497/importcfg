@@ -1,0 +1,12 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile github.com/conductorone/baton-sdk/pb/c1/connector/v2=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b134/_pkg_.a
+packagefile github.com/conductorone/baton-sdk/pkg/ratelimit=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b400/_pkg_.a
+packagefile github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b366/_pkg_.a
+packagefile go.opentelemetry.io/otel=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b478/_pkg_.a
+packagefile go.uber.org/zap=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b369/_pkg_.a
+packagefile google.golang.org/grpc/codes=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b276/_pkg_.a
+packagefile google.golang.org/grpc/status=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b289/_pkg_.a
+packagefile math=/data/squire/cache/go/plaid-cache/blob/output/43/43dc63cf2c06d304dad5ab9f33e1bff687bd395b2c5257d734b34bcbe3848129
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

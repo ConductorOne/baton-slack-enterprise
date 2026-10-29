@@ -1,0 +1,7 @@
+# import config
+packagefile google.golang.org/grpc/encoding/internal=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b279/_pkg_.a
+packagefile google.golang.org/grpc/internal/grpcutil=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b280/_pkg_.a
+packagefile google.golang.org/grpc/mem=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b281/_pkg_.a
+packagefile io=/data/squire/cache/go/plaid-cache/blob/output/fd/fdb3d8f7c5942e0ac41c565df8b4f29d8af5354cca3c237a550e10ec326367c6
+packagefile slices=/data/squire/cache/go/plaid-cache/blob/output/47/4785913ebabf44c318a2a46c54a2ff2aa0221066947d3c37c756c87472364351
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2

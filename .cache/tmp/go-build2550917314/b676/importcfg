@@ -1,0 +1,13 @@
+# import config
+packagefile bufio=/data/squire/cache/go/plaid-cache/blob/output/28/282df5cbc17344b0258f4be260756f17e0c5fac6c80ed6501e8055d6a92e0da4
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/prometheus/client_model/go=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b677/_pkg_.a
+packagefile github.com/prometheus/common/model=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b679/_pkg_.a
+packagefile io=/data/squire/cache/go/plaid-cache/blob/output/fd/fdb3d8f7c5942e0ac41c565df8b4f29d8af5354cca3c237a550e10ec326367c6
+packagefile math=/data/squire/cache/go/plaid-cache/blob/output/43/43dc63cf2c06d304dad5ab9f33e1bff687bd395b2c5257d734b34bcbe3848129
+packagefile path=/data/squire/cache/go/plaid-cache/blob/output/ab/ab5bf42c60ae9bf49d38279f982b5db5de0018915946179ed62f10a75c2a96fb
+packagefile regexp=/data/squire/cache/go/plaid-cache/blob/output/1f/1f55e02f6b242a0fa75b99fefc1ae1acf3939d6759274d09a3a1a46781272468
+packagefile runtime/metrics=/data/squire/cache/go/plaid-cache/blob/output/6f/6fd5f68332a8db12c5961038ca5219c76f21709558c544536ef1df8807ac2034
+packagefile sort=/data/squire/cache/go/plaid-cache/blob/output/6f/6f1bed9c19f4786981e4ad5b1d3abcd2adad02438cac67a1774857ce57c9479e
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2

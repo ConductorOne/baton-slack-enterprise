@@ -1,0 +1,7 @@
+# Sourced by this attempt's implementer/reviewer subagents.
+export GOCACHE="/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/go-build"
+export GOMODCACHE="/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/go-mod"
+export GOTMPDIR="/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp"
+export CF_ATTEMPT_BEAD="CXH-2390-cf-2610289sdi.12.1"
+export CF_ATTEMPT_BRANCH="connector-farm/CXH-2390-cf-2610289sdi-CXH-2390-cf-2610289sdi.12.1-impl"
+export CF_BAZEL_OUTPUT_BASE="/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/bazel"

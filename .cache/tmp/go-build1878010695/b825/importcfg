@@ -1,0 +1,17 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile flag=/data/squire/cache/go/plaid-cache/blob/output/bb/bbfd5ae84d94db3b808d37fa09af37b5975cf7aee0f3090059a14e0e103bca5d
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile io=/data/squire/cache/go/plaid-cache/blob/output/fd/fdb3d8f7c5942e0ac41c565df8b4f29d8af5354cca3c237a550e10ec326367c6
+packagefile log=/data/squire/cache/go/plaid-cache/blob/output/62/62e749655b6943db37743dbc5b8e88980455f3f4664a58db4599fd8aaa935c59
+packagefile math=/data/squire/cache/go/plaid-cache/blob/output/43/43dc63cf2c06d304dad5ab9f33e1bff687bd395b2c5257d734b34bcbe3848129
+packagefile net/http=/data/squire/cache/go/plaid-cache/blob/output/20/2037ea6cf81b9f52a01faf8e04aa0163882c2e84490e957e244d4aaa7ba3da42
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a
+packagefile reflect=/data/squire/cache/go/plaid-cache/blob/output/e2/e24be136b7a192c9dabc6525e9b825a53280f3bb305d349fbbe6df8418fed470
+packagefile regexp=/data/squire/cache/go/plaid-cache/blob/output/1f/1f55e02f6b242a0fa75b99fefc1ae1acf3939d6759274d09a3a1a46781272468
+packagefile runtime=/data/squire/cache/go/plaid-cache/blob/output/52/52ab39af02f3aaf633a15cbafb61d12594116940228a1d5934d0a5f3dfc681a8
+packagefile sort=/data/squire/cache/go/plaid-cache/blob/output/6f/6f1bed9c19f4786981e4ad5b1d3abcd2adad02438cac67a1774857ce57c9479e
+packagefile strconv=/data/squire/cache/go/plaid-cache/blob/output/57/57ef0660f82fb83bd3903faf663ec78130a56359b40bfd3362ebac2d540c6949
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b
+packagefile unicode/utf8=/data/squire/cache/go/plaid-cache/blob/output/b3/b34b916c459ea3d0350f70ed8d1f99de233d64aecedef18e3e35850f7ea3117f

@@ -1,0 +1,9 @@
+# import config
+packagefile cmp=/data/squire/cache/go/plaid-cache/blob/output/d1/d1820a2f7ceea8605c00a39a140851b862059a095611e87b6417c65c0154d403
+packagefile encoding/json=/data/squire/cache/go/plaid-cache/blob/output/fc/fce6d6edf4fa7fbaf44ed26065c208faa908534a52879dc164fcd24e16078b5c
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile go.mongodb.org/mongo-driver/bson=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b772/_pkg_.a
+packagefile go.mongodb.org/mongo-driver/bson/bsontype=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b776/_pkg_.a
+packagefile slices=/data/squire/cache/go/plaid-cache/blob/output/47/4785913ebabf44c318a2a46c54a2ff2aa0221066947d3c37c756c87472364351
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f

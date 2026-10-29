@@ -1,0 +1,8 @@
+# import config
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/cockroachdb/errors=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b573/_pkg_.a
+packagefile go/scanner=/data/squire/cache/go/plaid-cache/blob/output/11/11302c0d4465e108e38a3fb5735cdceddde91a4fdab9637b3ef8b17be0056945
+packagefile go/token=/data/squire/cache/go/plaid-cache/blob/output/04/045e8c31f847ea311cd26c9aec9c67c588b0d8b29d02526a03ecacc6489d959f
+packagefile strconv=/data/squire/cache/go/plaid-cache/blob/output/57/57ef0660f82fb83bd3903faf663ec78130a56359b40bfd3362ebac2d540c6949
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d

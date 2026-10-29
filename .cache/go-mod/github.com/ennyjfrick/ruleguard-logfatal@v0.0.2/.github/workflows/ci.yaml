@@ -1,0 +1,32 @@
+name: "CI"
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: "Checkout repo"
+      - uses: golangci/golangci-lint-action@v2
+        name: "Run golangci-lint"
+        with:
+          version: v1.61
+
+  test:
+    name: Unit test
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v2
+      - name: "Install Go"
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.23.x"
+      - name: "Run unit tests"
+        run: go test -v ./...

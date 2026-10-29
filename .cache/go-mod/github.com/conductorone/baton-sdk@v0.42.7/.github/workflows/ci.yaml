@@ -1,0 +1,352 @@
+name: ci
+on: pull_request
+jobs:
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: Run linters
+        uses: golangci/golangci-lint-action@v9
+        with:
+          skip-cache: true
+          # Pinned so lint findings don't drift with new golangci-lint
+          # releases. New gosec rules (G702/G118/G122/G703/G704) landed
+          # in v2.10+, breaking PRs that were clean against earlier
+          # versions. Bump deliberately, fixing any new findings in the
+          # same PR.
+          #
+          # v2.14.0 is the floor for a go 1.27.2 module: older releases cannot
+          # read its export data ("export data version 5 is greater than
+          # maximum supported version 4"), and a release built with an older
+          # Go refuses to load the config at all.
+          version: v2.14.0
+          # Loading this module's packages cold takes close to 3m on the
+          # runner; 3m was a budget the run had to hit exactly.
+          args: --timeout=5m
+  go-test:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Install Go
+        if: success()
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: go tests
+        run: go test -tags=baton_lambda_support -v -covermode=count -json ./... > test.json
+      - name: Print go test results
+        if: always()
+        run: cat test.json
+      - name: annotate go tests
+        if: always()
+        uses: guyarb/golang-test-annotations@v0.9.0
+        with:
+          test-results: test.json
+  windows-tests:
+    name: Windows tests (shard ${{ matrix.shard }})
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: Verify shard omission detection
+        if: matrix.shard == 0
+        run: python -m unittest scripts/windows_test_shard_test.py
+      - name: Run and audit native Windows tests
+        run: python scripts/windows-test-shard.py --shard ${{ matrix.shard }} --count 4
+      - name: Print go test results
+        if: always()
+        run: cat test.json
+      - name: Annotate go tests
+        if: always()
+        uses: guyarb/golang-test-annotations@v0.9.0
+        with:
+          test-results: test.json
+      - name: Upload test timings and inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tests-${{ matrix.shard }}
+          path: |
+            test.json
+            test-shard.json
+  windows-test-result:
+    name: go-test (windows-latest)
+    needs: windows-tests
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Windows shard to pass
+        env:
+          RESULT: ${{ needs.windows-tests.result }}
+        run: test "$RESULT" = success
+  chaos-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: Run bounded chaos checks under race detection
+        run: make chaos-check
+  race-shard-audit:
+    # The nightly race sweep is sharded by package (see the Makefile). This
+    # asserts the shards still cover every package exactly once, so a newly
+    # added package cannot quietly fall out of instrumented coverage. Seconds
+    # to run, and the gap it catches is otherwise invisible.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: Verify the nightly race shards cover every package
+        run: make race-shard-audit
+  baton-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - name: Build baton
+        run: make build
+      - name: Run baton tests
+        run: ./scripts/baton-test.sh
+  buf-lint-and-breaking-change-detection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Breaking change detection against `main`
+        uses: bufbuild/buf-action@v1
+        with:
+          version: '1.72.0'
+          breaking_against: 'https://github.com/conductorone/baton-sdk.git#branch=main'
+          breaking: true
+          format: true
+          lint: true
+          pr_comment: false
+          push: false
+  baton-demo-test:
+    strategy:
+      matrix:
+        worker-count: [ 0, 4 ]
+        storage-engine: [ "sqlite", "pebble" ]
+    runs-on: ubuntu-latest
+    env:
+      BATON_WORKERS: ${{ matrix.worker-count }}
+      BATON_STORAGE_ENGINE: ${{ matrix.storage-engine }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          path: baton-sdk
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: baton-sdk/go.mod
+      - name: Checkout baton-demo
+        uses: actions/checkout@v6
+        with:
+          repository: conductorone/baton-demo
+          path: baton-demo
+          ref: main
+      - name: Replace baton-sdk with local version
+        run: |
+          cd baton-demo
+          go mod edit -replace github.com/conductorone/baton-sdk=../baton-sdk
+          go mod tidy && go mod vendor
+      - name: Build baton-demo
+        run: |
+          cd baton-demo
+          go build ./cmd/baton-demo
+      # The sync-test action's get-baton step downloads the latest RELEASED
+      # baton (published from this repo's cmd/baton), which is built against
+      # the released keyspace layout. This branch changes the pebble
+      # keyspace, so a released reader would reject the new manifest engine
+      # name ("pebble3") — build baton from the local checkout instead.
+      # get-baton skips its download when a baton binary is already on PATH.
+      - name: Build baton CLI from local checkout
+        run: |
+          cd baton-sdk
+          go build -o /usr/local/bin/baton ./cmd/baton
+      - name: Initialize database
+        run: ./baton-demo/baton-demo --init-db
+      - name: Test grant/revoke
+        uses: ConductorOne/github-workflows/actions/sync-test@v4
+        with:
+          connector: ./baton-demo/baton-demo
+          baton-entitlement: 'group:group-0000001:member'
+          baton-principal: 'user-0000000'
+          baton-principal-type: 'user'
+      - name: Test create account
+        uses: ConductorOne/github-workflows/actions/account-provisioning@v4
+        with:
+          connector: ./baton-demo/baton-demo
+          account-email: testuser1@example.com
+          account-login: testuser1
+          account-profile: '{"username": "testuser1", "email": "testuser1@example.com", "firstName": "test", "lastName": "user1"}'
+      - name: Test rotate credentials
+        run: ./baton-demo/baton-demo --rotate-credentials=user-0000000 --rotate-credentials-type=user
+      - name: Test targeted resources
+        run: |
+          set -euo pipefail
+          cd baton-demo
+          
+          # Clean previous sync file if present
+          rm -f sync.c1z
+          
+          # Run the targeted sync
+          ./baton-demo \
+            --sync-resources='"bid:r:group/group-0000000","bid:r:group/group-0000001","bid:r:role/role-0000000"'
+          
+          # Dump resources as JSON
+          baton resources --output-format=json > resources.json
+          cat resources.json
+          
+          # Validate resource count
+          jq -e '(.resources | length) == 3' resources.json > /dev/null
+          
+          # Build actual + expected sorted arrays
+          actual_sorted="$(jq -r '
+            [ .resources[]
+              | "bid:r:\(.resourceType.id)/\(.resource.id.resource)"
+            ] | sort | @json
+          ' resources.json)"
+          
+          expected_sorted="$(jq -r -n '
+            ["bid:r:group/group-0000000",
+             "bid:r:group/group-0000001",
+             "bid:r:role/role-0000000"]
+            | sort | @json
+          ')"
+          
+          # Compare
+          if [[ "$actual_sorted" != "$expected_sorted" ]]; then
+            echo "Resource set mismatch"
+            echo "Expected: $expected_sorted"
+            echo "Actual:   $actual_sorted"
+            echo "Diff:"
+            diff <(echo "$actual_sorted" | jq -r '.[]') <(echo "$expected_sorted" | jq -r '.[]') || true
+            exit 1
+          else
+            echo "Resource set matches expected"
+          fi
+      - name: Test sync by resource type
+        run: |
+          set -euo pipefail
+          cd baton-demo
+
+          # Clean previous sync file if present
+          rm -f sync.c1z
+
+          # Run targeted sync for resource type "group"
+          ./baton-demo --sync-resource-types group
+
+          # Dump resources as JSON
+          baton resources --output-format=json > resources.json
+          cat resources.json
+
+          # Validate resource count (should be 4)
+          jq -e '(.resources | length) == 4' resources.json > /dev/null
+
+          # Validate all resources are type "group"
+          jq -e '(.resources | map(select(.resourceType.id == "group")) | length) == (.resources | length)' resources.json > /dev/null
+
+          # Build actual and expected sorted arrays
+          actual_sorted="$(jq -r '
+            [ .resources[]
+              | "bid:r:\(.resourceType.id)/\(.resource.id.resource)"
+            ] | sort | @json
+          ' resources.json)"
+
+          expected_sorted="$(jq -r -n '
+            ["bid:r:group/group-0000000",
+             "bid:r:group/group-0000001",
+             "bid:r:group/group-0000002",
+             "bid:r:group/group-everyone"]
+            | sort | @json
+          ')"
+
+          # Compare
+          if [[ "$actual_sorted" != "$expected_sorted" ]]; then
+            echo "Resource set mismatch"
+            echo "Expected: $expected_sorted"
+            echo "Actual:   $actual_sorted"
+            echo "Diff:"
+            diff <(echo "$actual_sorted" | jq -r '.[]') <(echo "$expected_sorted" | jq -r '.[]') || true
+            exit 1
+          else
+            echo "Resource set matches expected"
+          fi
+      - name: Test with both --sync-resource-types and --sync-resources
+        run: |
+          set -euo pipefail
+          cd baton-demo
+
+          rm -f sync.c1z
+
+          # Run with BOTH filters: type=group AND a mixed list (groups + role + user)
+          ./baton-demo \
+            --sync-resource-types group \
+            --sync-resources='"bid:r:group/group-0000000","bid:r:group/group-0000002","bid:r:role/role-0000001","bid:r:user/user-0000003"'
+
+          # Dump resources to JSON
+          baton resources --output-format=json > resources.json
+          cat resources.json
+
+          # Validate the result is exactly the intersection: 2 groups (0000000, 0000002)
+          jq -e '(.resources | length) == 2' resources.json > /dev/null
+          jq -e '(.resources | map(select(.resourceType.id == "group")) | length) == (.resources | length)' resources.json > /dev/null
+
+          # Build actual and expected sets (order-independent)
+          actual_sorted="$(jq -r '
+            [ .resources[]
+              | "bid:r:\(.resourceType.id)/\(.resource.id.resource)"
+            ] | sort | @json
+          ' resources.json)"
+
+          expected_sorted="$(jq -r -n '
+            ["bid:r:group/group-0000000",
+             "bid:r:group/group-0000002"]
+            | sort | @json
+          ')"
+
+          # Compare
+          if [[ "$actual_sorted" != "$expected_sorted" ]]; then
+            echo "Resource set mismatch"
+            echo "Expected: $expected_sorted"
+            echo "Actual:   $actual_sorted"
+            echo "Diff:"
+            diff <(echo "$actual_sorted" | jq -r '.[]') <(echo "$expected_sorted" | jq -r '.[]') || true
+            exit 1
+          else
+            echo "Resource set matches expected (intersection)"
+          fi

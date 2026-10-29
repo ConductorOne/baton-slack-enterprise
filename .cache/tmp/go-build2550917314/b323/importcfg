@@ -1,0 +1,19 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile encoding/json=/data/squire/cache/go/plaid-cache/blob/output/fc/fce6d6edf4fa7fbaf44ed26065c208faa908534a52879dc164fcd24e16078b5c
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile google.golang.org/grpc/balancer/grpclb/state=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b324/_pkg_.a
+packagefile google.golang.org/grpc/grpclog=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b253/_pkg_.a
+packagefile google.golang.org/grpc/internal/backoff=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b284/_pkg_.a
+packagefile google.golang.org/grpc/internal/envconfig=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b258/_pkg_.a
+packagefile google.golang.org/grpc/internal/resolver/dns/internal=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b325/_pkg_.a
+packagefile google.golang.org/grpc/resolver=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b264/_pkg_.a
+packagefile google.golang.org/grpc/serviceconfig=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b260/_pkg_.a
+packagefile math/rand/v2=/data/squire/cache/go/plaid-cache/blob/output/57/5780f7ebd28098ee21f168b1ea502061568f30d44beb74d0da497926d1c92d0a
+packagefile net=/data/squire/cache/go/plaid-cache/blob/output/58/5839eb060d2840a2cc6d260887716229f5e33072ed108b40e361dbe56b4208c3
+packagefile net/netip=/data/squire/cache/go/plaid-cache/blob/output/ca/ca1c9251e2f504cc7c02d4c4577c8ac4669cadb0cde2541ff64238f37d54deb6
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a
+packagefile strconv=/data/squire/cache/go/plaid-cache/blob/output/57/57ef0660f82fb83bd3903faf663ec78130a56359b40bfd3362ebac2d540c6949
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

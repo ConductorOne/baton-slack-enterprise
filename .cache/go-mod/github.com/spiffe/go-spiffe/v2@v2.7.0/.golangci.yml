@@ -1,0 +1,44 @@
+version: "2"
+linters:
+  enable:
+    - bodyclose
+    - copyloopvar
+    - gocritic
+    - gosec
+    - misspell
+    - nakedret
+    - revive
+    - unconvert
+    - unparam
+    - whitespace
+  settings:
+    revive:
+      rules:
+        - name: unused-parameter
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - govet
+          - ineffassign
+          - staticcheck
+        path: examples_test.go
+    paths:
+      - .*\.pb\.go
+      - testdata$
+      - test/mock
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go
+      - testdata$
+      - test/mock

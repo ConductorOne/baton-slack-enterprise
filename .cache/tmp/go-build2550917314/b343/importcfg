@@ -1,0 +1,17 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile crypto/aes=/data/squire/cache/go/plaid-cache/blob/output/53/531accb409d2f08dee62765755dee21caf597a3e7f513fb6aceed9f40aab5c5a
+packagefile crypto/cipher=/data/squire/cache/go/plaid-cache/blob/output/60/6033708411b5f7f9bff113377e7fdd3bb167dc934ad60a8dd303df78dbf73c3e
+packagefile crypto/hkdf=/data/squire/cache/go/plaid-cache/blob/output/b0/b0e8c33b7a5d68f5e153bf15e1c0510e9ef48724dbe92db4fb1d96b2da1eed60
+packagefile crypto/mlkem=/data/squire/cache/go/plaid-cache/blob/output/65/65222c852f5964cbcbe0691a274b966e61f0dd8ed24871f84d0702dbceb7810f
+packagefile crypto/rand=/data/squire/cache/go/plaid-cache/blob/output/b7/b753069d9b2a274e3135b4c6fb9cd01786677f8154e9659ecf7761df92fd9332
+packagefile crypto/sha256=/data/squire/cache/go/plaid-cache/blob/output/48/4836568d84a614a713495e38c084056abd2aae429269bba7a0176ff3a7812678
+packagefile crypto/sha3=/data/squire/cache/go/plaid-cache/blob/output/97/97d878ed485e6a98ffba24a16d93656678c1b165c2fca2d85bc4ba09f56b7383
+packagefile crypto/sha512=/data/squire/cache/go/plaid-cache/blob/output/69/6904476d2a4e285bf4fe25c73bd40c346cd9b5aa58a2442c8c7aa5d9cd43263d
+packagefile errors=/data/squire/cache/go/plaid-cache/blob/output/03/03d168ac7afe2a3da838ee7fa6cb91db838c2231295a6fb2c05f3bc0ad2c3dab
+packagefile filippo.io/hpke/crypto=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b344/_pkg_.a
+packagefile filippo.io/hpke/crypto/ecdh=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b345/_pkg_.a
+packagefile filippo.io/hpke/internal/byteorder=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b346/_pkg_.a
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile golang.org/x/crypto/chacha20poly1305=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b339/_pkg_.a
+packagefile hash=/data/squire/cache/go/plaid-cache/blob/output/32/329438e3c0fdd9a58d6be2bcd0111e17f4de47b3ac6fe4524454ac251e5d480d

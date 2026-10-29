@@ -1,0 +1,245 @@
+syntax = "proto3";
+
+package c1.connector.v2;
+
+import "c1/connector/v2/asset.proto";
+import "c1/connector/v2/resource.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/conductorone/baton-sdk/pb/c1/connector/v2";
+
+message ConnectorServiceCleanupRequest {
+  repeated google.protobuf.Any annotations = 1;
+  string active_sync_id = 2 [(validate.rules).string = {
+    ignore_empty: true
+    min_bytes: 1
+    max_bytes: 1024
+  }];
+}
+message ConnectorServiceCleanupResponse {
+  repeated google.protobuf.Any annotations = 1;
+}
+
+service ConnectorService {
+  rpc GetMetadata(ConnectorServiceGetMetadataRequest) returns (ConnectorServiceGetMetadataResponse);
+  rpc Validate(ConnectorServiceValidateRequest) returns (ConnectorServiceValidateResponse);
+  rpc Cleanup(ConnectorServiceCleanupRequest) returns (ConnectorServiceCleanupResponse);
+}
+
+message ConnectorMetadata {
+  string display_name = 1 [(validate.rules).string = {
+    min_bytes: 1
+    max_bytes: 1024
+  }];
+  string help_url = 2 [(validate.rules).string = {
+    min_bytes: 1
+    max_bytes: 1024
+    uri: true
+    prefix: "https://"
+    ignore_empty: true
+  }];
+  c1.connector.v2.AssetRef icon = 3;
+  c1.connector.v2.AssetRef logo = 4;
+  google.protobuf.Struct profile = 5;
+  repeated google.protobuf.Any annotations = 6;
+  string description = 7 [(validate.rules).string = {
+    min_bytes: 1
+    max_bytes: 4096
+    ignore_empty: true
+  }];
+  ConnectorCapabilities capabilities = 8;
+  ConnectorAccountCreationSchema account_creation_schema = 9;
+}
+
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_PROVISION = 1;
+  CAPABILITY_SYNC = 2;
+  CAPABILITY_EVENT_FEED = 3;
+  CAPABILITY_TICKETING = 4;
+  CAPABILITY_ACCOUNT_PROVISIONING = 5;
+  CAPABILITY_CREDENTIAL_ROTATION = 6;
+  CAPABILITY_RESOURCE_CREATE = 7;
+  CAPABILITY_RESOURCE_DELETE = 8;
+  CAPABILITY_SYNC_SECRETS = 9;
+  CAPABILITY_ACTIONS = 10;
+  CAPABILITY_TARGETED_SYNC = 11;
+  CAPABILITY_EVENT_FEED_V2 = 12;
+  CAPABILITY_SERVICE_MODE_TARGETED_SYNC = 13;
+  // The connector can mint new credentials for an existing identity via
+  // CredentialManagerService.IssueCredential.
+  CAPABILITY_CREDENTIAL_ISSUE = 14;
+  // IssueCredential supports the baton/jwe/v1 X-Wing recipient with one config
+  // and one plaintext value. This names that one suite, not JWE in general;
+  // another suite needs its own capability value.
+  CAPABILITY_CREDENTIAL_ENCRYPTION_JWE_XWING_V1 = 16;
+}
+
+message CredentialDetails {
+  CredentialDetailsAccountProvisioning capability_account_provisioning = 1;
+  CredentialDetailsCredentialRotation capability_credential_rotation = 2;
+}
+
+enum CapabilityDetailCredentialOption {
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_UNSPECIFIED = 0;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD = 1;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_RANDOM_PASSWORD = 2;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_SSO = 3;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_ENCRYPTED_PASSWORD = 4;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_API_KEY = 5;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_KEYPAIR = 6;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_TOKEN = 7;
+  CAPABILITY_DETAIL_CREDENTIAL_OPTION_CLIENT_SECRET = 8;
+}
+
+message CredentialDetailsAccountProvisioning {
+  repeated CapabilityDetailCredentialOption supported_credential_options = 1;
+  CapabilityDetailCredentialOption preferred_credential_option = 2;
+}
+
+message CredentialDetailsCredentialRotation {
+  repeated CapabilityDetailCredentialOption supported_credential_options = 1;
+  CapabilityDetailCredentialOption preferred_credential_option = 2;
+}
+
+// Advertises which credential options CredentialManagerService.IssueCredential
+// supports for this identity type.
+message CredentialDetailsCredentialIssue {
+  // Advertised issuance options, unique on (option, secret_resource_type_id).
+  // Several descriptors may share an option when they mint different secret
+  // resource types -- an organization-wide API key and a per-identity API key,
+  // for example.
+  repeated CredentialIssueOptionDescriptor options = 1;
+  // The preferred credential shape. Selection is two-level: this field picks
+  // the shape and CredentialIssueOptionDescriptor.preferred picks the
+  // descriptor within it. To resolve the default, look only at the descriptors
+  // carrying this option: one of them has preferred set, except where the
+  // option has a single descriptor, which is the default with the flag unset.
+  CapabilityDetailCredentialOption preferred_option = 2;
+}
+
+message CredentialIssueOptionDescriptor {
+  CapabilityDetailCredentialOption option = 1;
+  repeated KeyGenerationProfile key_profiles = 2;
+  IssuanceExpiryCapability expiry = 3;
+  repeated string scopes = 4;
+  bool custom_scopes_allowed = 5;
+  bool custom_audiences_allowed = 6;
+  repeated string audiences = 7;
+  CredentialResourceMode resource_mode = 8;
+  // Resource type returned by IssueCredential. It must be registered with a
+  // ResourceDeleterV2 so every issued credential has a provider revoke path,
+  // including virtual credentials that cannot be listed later. Together with
+  // option it identifies this descriptor, so two credential kinds sharing one
+  // shape must return distinct resource types.
+  string secret_resource_type_id = 9 [(validate.rules).string = {
+    min_bytes: 1
+    max_bytes: 1024
+  }];
+  // Marks this descriptor the default within its option, for a caller
+  // presenting a choice. At most one descriptor per option may set it, and one
+  // must whenever several descriptors share that option: a default taken from
+  // declaration order would not be stable. It selects nothing at issue time --
+  // CredentialIssueOptions.secret_resource_type_id is still required.
+  bool preferred = 10;
+}
+
+message IssuanceExpiryCapability {
+  google.protobuf.Duration min = 1;
+  google.protobuf.Duration max = 2;
+}
+
+message ConnectorCapabilities {
+  repeated ResourceTypeCapability resource_type_capabilities = 1;
+  repeated Capability connector_capabilities = 2;
+  CredentialDetails credential_details = 3;
+}
+
+message CapabilityPermission {
+  string permission = 1;
+}
+
+message CapabilityPermissions {
+  repeated CapabilityPermission permissions = 1;
+}
+
+message OptInRequired {}
+
+// Deprecated marks a resource type that existing connector installations may
+// continue syncing but new installations should not enable.
+message Deprecated {}
+
+// SkipSyncAnomalyDetection marks a resource type whose counts can legitimately
+// decrease between syncs (e.g. invitations that disappear once accepted). When
+// present on a ResourceType, sync anomaly detection ignores data drops for that
+// resource type only; all other resource types are still checked.
+message SkipSyncAnomalyDetection {}
+
+message ResourceTypeCapability {
+  c1.connector.v2.ResourceType resource_type = 1;
+  repeated Capability capabilities = 2;
+  CapabilityPermissions permissions = 3;
+  bool opt_in_required = 4;
+  bool skip_sync_anomaly_detection = 5;
+  CredentialDetailsCredentialIssue credential_issue = 6;
+  bool deprecated = 7;
+}
+
+message ConnectorServiceGetMetadataRequest {}
+
+message ConnectorServiceGetMetadataResponse {
+  ConnectorMetadata metadata = 1;
+}
+
+message ConnectorServiceValidateRequest {}
+
+// NOTE(morgabra) We're expecting correct grpc.Status responses
+// for things like 401/403/500, etc
+message ConnectorServiceValidateResponse {
+  repeated google.protobuf.Any annotations = 1;
+  string sdk_version = 2;
+}
+
+message ConnectorAccountCreationSchema {
+  map<string, Field> field_map = 1;
+
+  message Field {
+    string display_name = 1;
+    bool required = 2;
+    string description = 3;
+    string placeholder = 4;
+    int32 order = 5;
+
+    bool deprecated = 6;
+    oneof field {
+      StringField string_field = 100;
+      BoolField bool_field = 101;
+      StringListField string_list_field = 102;
+      IntField int_field = 103;
+      MapField map_field = 104;
+    }
+  }
+
+  message StringField {
+    optional string default_value = 1;
+  }
+
+  message BoolField {
+    optional bool default_value = 1;
+  }
+
+  message StringListField {
+    repeated string default_value = 1;
+  }
+
+  message IntField {
+    optional int32 default_value = 1;
+  }
+
+  message MapField {
+    map<string, Field> default_value = 1;
+  }
+}

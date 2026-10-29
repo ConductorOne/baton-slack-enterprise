@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package c1.connector.v2;
+
+import "google/protobuf/struct.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/conductorone/baton-sdk/pb/c1/connector/v2";
+
+message GrantMetadata {
+  google.protobuf.Struct metadata = 1;
+}
+
+message GrantExpandable {
+  repeated string entitlement_ids = 1 [(validate.rules).repeated = {
+    min_items: 1
+    unique: true
+  }];
+  bool shallow = 2;
+  repeated string resource_type_ids = 3;
+}
+
+// Grant cannot be updated or revoked. For example, membership in an "all users" group.
+message GrantImmutable {
+  string source_id = 1;
+  google.protobuf.Struct metadata = 2;
+}
+
+// Grant was not created because the entitlement already existed.
+message GrantAlreadyExists {}
+
+// Grant was not revoked because the entitlement does not exist.
+message GrantAlreadyRevoked {}
+
+// If a resource for a grant doesn't exist, insert it.
+message InsertResourceGrants {}

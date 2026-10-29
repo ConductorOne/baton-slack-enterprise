@@ -1,0 +1,11 @@
+# import config
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/RaduBerinde/axisds=/data/squire/cache/go/plaid-cache/blob/output/a7/a75580e54115ed948cac6bde40d5ef97561285002f55b668b27e985e04331dd7
+packagefile github.com/RaduBerinde/axisds/regiontree=/data/squire/cache/go/plaid-cache/blob/output/d5/d527339fc02113e13ede1481a434aa3e35fc687e2a4b8b08bfc2e3a76b2e75d0
+packagefile github.com/cockroachdb/crlib/crstrings=/data/squire/cache/go/plaid-cache/blob/output/cd/cd709bf98b5a9c8e016ea59f148c7b83cb4495be51057cba8b5000a5368f6a3c
+packagefile github.com/cockroachdb/crlib/crtime=/data/squire/cache/go/plaid-cache/blob/output/ca/cafdfb805698ce65df6371776a9be6d7246460c9344024629cfea5720bdd9519
+packagefile github.com/cockroachdb/pebble/v2/internal/base=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b647/_pkg_.a
+packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d
+packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

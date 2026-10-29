@@ -1,0 +1,9 @@
+# import config
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/kr/text=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b593/_pkg_.a
+packagefile github.com/rogpeppe/go-internal/fmtsort=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b594/_pkg_.a
+packagefile io=/data/squire/cache/go/plaid-cache/blob/output/fd/fdb3d8f7c5942e0ac41c565df8b4f29d8af5354cca3c237a550e10ec326367c6
+packagefile log=/data/squire/cache/go/plaid-cache/blob/output/62/62e749655b6943db37743dbc5b8e88980455f3f4664a58db4599fd8aaa935c59
+packagefile reflect=/data/squire/cache/go/plaid-cache/blob/output/e2/e24be136b7a192c9dabc6525e9b825a53280f3bb305d349fbbe6df8418fed470
+packagefile strconv=/data/squire/cache/go/plaid-cache/blob/output/57/57ef0660f82fb83bd3903faf663ec78130a56359b40bfd3362ebac2d540c6949
+packagefile text/tabwriter=/data/squire/cache/go/plaid-cache/blob/output/be/bed21d63da49a1e34febb738547f87f5dedb4c57e1a3ec08e7757c681477d3ca

@@ -1,0 +1,4 @@
+# import config
+packagefile encoding/binary=/data/squire/cache/go/plaid-cache/blob/output/0a/0a2fe4470aad98e3e14586c1c99427010c273bcccacadf0645a06fb1ecb32c7f
+packagefile hash/fnv=/data/squire/cache/go/plaid-cache/blob/output/49/491d76f73ddd716e1961fa04bbad218e5f7b59baba2d7052a061282b58170c6d
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a

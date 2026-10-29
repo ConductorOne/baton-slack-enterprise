@@ -1,0 +1,655 @@
+// V3 storage record types. All messages here are the durable on-disk
+// shape; no consumer ever depends on these types beyond the engine
+// itself. Translation to/from c1.connector.v2 happens at the engine
+// boundary.
+//
+// Import boundary (RFC v4 §3.4): files in c1.storage.v3 may only
+// import google.protobuf.* and other c1.storage.v3 files. Enforced
+// by `buf lint` config in this repo.
+
+syntax = "proto3";
+
+package c1.storage.v3;
+
+import "c1/storage/v3/options.proto";
+import "c1/storage/v3/refs.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/conductorone/baton-sdk/pb/c1/storage/v3";
+
+// SyncType is the v3-owned mirror of c1.connector.v2.SyncType. Field
+// numbers match v2 to keep translation cheap. Changes to v2 require
+// an explicit mirror update here (no automatic propagation).
+enum SyncType {
+  SYNC_TYPE_UNSPECIFIED = 0;
+  SYNC_TYPE_FULL = 1;
+  SYNC_TYPE_PARTIAL = 2;
+  SYNC_TYPE_RESOURCES_ONLY = 3;
+  // Deprecated: 4 and 5 were the diff-sync pair; diff-sync support was
+  // removed and nothing produces or consumes them. Kept (rather than
+  // reserved) so the buf breaking policy can keep forbidding enum value
+  // deletion repo-wide.
+  SYNC_TYPE_PARTIAL_UPSERTS = 4 [deprecated = true];
+  SYNC_TYPE_PARTIAL_DELETIONS = 5 [deprecated = true];
+}
+
+// StatusRecord mirrors c1.connector.v2.Status. Field numbers and
+// enum values match v2 to keep translation cheap; changes to v2
+// require an explicit mirror update here (no automatic propagation).
+message StatusRecord {
+  enum ResourceStatus {
+    RESOURCE_STATUS_UNSPECIFIED = 0;
+    RESOURCE_STATUS_ENABLED = 1;
+    RESOURCE_STATUS_DISABLED = 2;
+    RESOURCE_STATUS_DELETED = 3;
+    RESOURCE_STATUS_PENDING = 4;
+  }
+  ResourceStatus status = 1;
+  // Status details, such as "locked by admin" or "deleted by user X".
+  string details = 2;
+}
+
+// GrantExpandableRecord mirrors c1.connector.v2.GrantExpandable.
+// Field numbers must match v2; drift detection via CI lint.
+message GrantExpandableRecord {
+  repeated string entitlement_ids = 1;
+  bool shallow = 2;
+  repeated string resource_type_ids = 3;
+}
+
+// GrantSourceRecord mirrors one entry from
+// c1.connector.v2.GrantSources.sources. The map key (source
+// entitlement ID) is the same as the map key in GrantRecord.sources.
+message GrantSourceRecord {
+  // resource_type_id and resource_id name the resource the source
+  // entitlement belongs to. Useful for audit chains without a second
+  // lookup.
+  string resource_type_id = 1;
+  string resource_id = 2;
+  string entitlement_id = 3;
+  bool is_direct = 4;
+}
+
+message ResourceTypeRecord {
+  option (table) = {
+    name: "resource_types"
+    primary_key: ["external_id"]
+  };
+
+  reserved 1;
+  reserved "sync_id";
+  string external_id = 2;
+  string display_name = 3;
+  repeated string traits = 4;
+  repeated google.protobuf.Any annotations = 5;
+  google.protobuf.Timestamp discovered_at = 6;
+  // v2.ResourceType.description — informational, but on the v2
+  // wire contract. SQLite preserved it via the data blob.
+  string description = 7;
+  // v2.ResourceType.sourced_externally — boolean flag indicating
+  // the resource type lives outside the connector's primary
+  // catalog. Used by C1's source attribution.
+  bool sourced_externally = 8;
+}
+
+message ResourceRecord {
+  option (table) = {
+    name: "resources"
+    primary_key: [
+      "resource_type_id",
+      "resource_id"
+    ]
+  };
+
+  reserved 1;
+  reserved "sync_id";
+  string resource_type_id = 2;
+  string resource_id = 3;
+  string display_name = 4;
+  string description = 5;
+  ResourceRef parent = 6 [(index) = {
+    name: "by_parent"
+    composite: [
+      "resource_type_id",
+      "resource_id"
+    ]
+  }];
+  repeated google.protobuf.Any annotations = 7;
+  google.protobuf.Timestamp discovered_at = 8;
+
+  // Profile of the resource. This is a free-form JSON object that can be used to store any additional metadata about the resource.
+  google.protobuf.Struct profile = 9;
+  // Status of the resource.
+  StatusRecord status = 10;
+  // Creation time of the resource, not the record in the c1z file.
+  google.protobuf.Timestamp created_at = 11;
+
+  // NOTE on v2.Resource traits: connector-level traits (UserTrait,
+  // GroupTrait, AppTrait, RoleTrait, SecretTrait, etc.) are packed
+  // into `annotations` as Any (the v2 connector contract — see
+  // pkg/types/resource/user_trait.go). The annotations field above
+  // round-trips them lossless; no extra field is needed.
+
+  // Source-cache scope stamp (see annotation_source_cache.proto).
+  // Empty for rows not produced under a source-cache scope.
+  // NOTE: the replay reference branch declared this as field 9; it moved
+  // to 12 when profile/status/created_at (9-11) landed on main first.
+  // No artifact was ever written with the old number.
+  string source_scope_key = 12 [(index) = {
+    name: "by_source_scope"
+    partial: "source_scope_key != ''"
+  }];
+  // External ID of the resource icon asset. This must point to an asset that is an image.
+  string icon_asset_external_id = 13;
+}
+
+message EntitlementRecord {
+  option (table) = {
+    name: "entitlements"
+    primary_key: ["external_id"]
+  };
+
+  reserved 1;
+  reserved "sync_id";
+  string external_id = 2;
+  ResourceRef resource = 3 [(index) = {
+    name: "by_resource"
+    composite: [
+      "resource_type_id",
+      "resource_id"
+    ]
+  }];
+  string display_name = 4;
+  string description = 5;
+  string purpose = 6;
+  repeated google.protobuf.Any annotations = 7;
+  google.protobuf.Timestamp discovered_at = 8;
+
+  // Slug carried through from v2.Entitlement.slug. Consumed by
+  // pkg/sync/syncer.go when building entitlement IDs and by
+  // downstream C1 reports (entitlements report, access-review
+  // grants). SQLite preserved this implicitly via the data blob;
+  // v3 needs a dedicated field since EntitlementRef is identity-
+  // only.
+  string slug = 9;
+
+  // GrantableTo carries the v2.Entitlement.grantable_to set
+  // (resource types this entitlement can be granted to). v2 stores
+  // it as a list of full ResourceType messages; v3 stores only the
+  // ids — read-side hydration fetches the full ResourceType via the
+  // resource_types table when needed. Consumed by
+  // pkg/sync/syncer.go's principal-type narrowing.
+  repeated string grantable_to_resource_type_ids = 10;
+
+  // Source-cache scope stamp (see annotation_source_cache.proto).
+  // Empty for rows not produced under a source-cache scope.
+  string source_scope_key = 11 [(index) = {
+    name: "by_source_scope"
+    partial: "source_scope_key != ''"
+  }];
+}
+
+message GrantRecord {
+  option (table) = {
+    name: "grants"
+    primary_key: ["external_id"]
+  };
+
+  reserved 1;
+  reserved "sync_id";
+  string external_id = 2;
+  // entitlement carries TWO indexes:
+  //   by_entitlement              — keyed (entitlement_id, principal_rt, principal_id);
+  //                                 drives PaginateGrantsByEntitlement / ListGrantsForEntitlement.
+  //   by_entitlement_resource     — keyed (resource_type_id, resource_id); drives
+  //                                 Adapter.ListGrants and ListWithAnnotationsForResourcePage
+  //                                 when req.Resource is set (the entitlement-side resource
+  //                                 filter that matches SQLite's listGrantsGeneric).
+  // The codegen plugin emits the keyspace + write/delete hooks; the runtime
+  // wires through pkg/dotc1z/engine/pebble/keys.go + grants.go + paginate.go.
+  EntitlementRef entitlement = 3 [(index) = {
+    name: "by_entitlement"
+    composite: [
+      "entitlement_id",
+      "principal.resource_type_id",
+      "principal.resource_id"
+    ]
+  }];
+  PrincipalRef principal = 4 [(index) = {
+    name: "by_principal"
+    composite: [
+      "resource_type_id",
+      "resource_id"
+    ]
+  }];
+
+  google.protobuf.Timestamp discovered_at = 5;
+  GrantExpandableRecord expansion = 6;
+  bool needs_expansion = 7 [(index) = {
+    name: "by_needs_expansion"
+    partial: "needs_expansion = true"
+  }];
+  repeated google.protobuf.Any annotations = 8;
+  // map<source_entitlement_id, GrantSourceRecord> — same wire shape as
+  // c1.connector.v2.GrantSources.sources.
+  map<string, GrantSourceRecord> sources = 9;
+
+  // Source-cache scope stamp (see annotation_source_cache.proto).
+  // Empty for rows not produced under a source-cache scope — notably
+  // expander-derived grants, which are recreated by expansion each sync
+  // and never replayed. StoreExpandedGrants preserves this field on
+  // rewrites of existing rows, exactly like expansion/needs_expansion.
+  string source_scope_key = 10 [(index) = {
+    name: "by_source_scope"
+    partial: "source_scope_key != ''"
+  }];
+}
+
+message AssetRecord {
+  option (table) = {
+    name: "assets"
+    primary_key: [
+      "sync_id",
+      "external_id"
+    ]
+  };
+
+  string sync_id = 1;
+  string external_id = 2;
+  string content_type = 3;
+  bytes data = 4;
+  google.protobuf.Timestamp discovered_at = 5;
+}
+
+message SyncRunRecord {
+  option (table) = {
+    name: "sync_runs"
+    primary_key: ["sync_id"]
+  };
+
+  // 8 was linked_sync_id, the removed diff-sync pair link; no file was
+  // ever written with it.
+  reserved 8;
+  reserved "linked_sync_id";
+
+  string sync_id = 1;
+  SyncType type = 2;
+  string parent_sync_id = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp ended_at = 5;
+  string sync_token = 6;
+  // supports_diff marks a sync whose data collection completed with
+  // SQL-layer grant metadata populated. The name is historical (it once
+  // gated diff-sync generation, since removed); today it gates
+  // `baton rollback-expansion`.
+  bool supports_diff = 7;
+
+  // compacted marks a sync produced by compaction (fold or rebuild)
+  // rather than by a real connector run. Compacted artifacts are
+  // keep-newer UPSERT merges — base rows a newer input deleted survive —
+  // so no input sync's upstream validators (source-cache validators) describe
+  // their contents.
+  //
+  // "Can this sync be used as a source-cache replay source?" is the
+  // predicate c1zstore.SyncRun.UsableAsReplaySource: type == FULL and
+  // !compacted. The syncer enforces it — feeding a compacted or
+  // partial/derived sync to WithPreviousSyncC1ZPath degrades to a cold
+  // (full-fetch) sync. Orchestrators deciding which artifact to
+  // materialize as the previous sync should apply the same predicate
+  // instead of guessing from provenance.
+  bool compacted = 9;
+
+  // Persisted proof that the post-collection ingestion-invariant pass
+  // completed successfully before this sync was sealed. Empty generation
+  // means the artifact predates verification metadata (or was produced by a
+  // path that did not run the pass). Coverage names only checks that actually
+  // ran; engines without the inspection surface therefore record a subset
+  // rather than claiming full verification.
+  string ingest_invariant_generation = 10;
+  repeated string ingest_invariant_coverage = 11;
+
+  // "connector" applies the ordinary connector-ingest verdict policy;
+  // "compaction_merge" applies the policy for a pre-sealed keep-newer merge.
+  // Empty when ingest_invariant_generation is empty.
+  string ingest_invariant_mode = 12;
+}
+
+// SyncStatsRecord is the engine-internal sidecar populated at
+// EndFreshSync so Stats() and GrantStats() are O(1) reads instead
+// of O(N) range scans. Stored under the engine-meta keyspace at
+// (typeEngineMeta | "stats" | sync_id_bytes), not in the c1z record
+// namespace — readers consume it via the SDK's Stats() RPC and
+// never see the proto directly.
+message SyncStatsRecord {
+  string sync_id = 1;
+  int64 resource_types = 2;
+  int64 resources = 3;
+  int64 entitlements = 4;
+  int64 grants = 5;
+  int64 assets = 6;
+  // Per-resource-type counts: keyed by resource_type_id.
+  map<string, int64> resources_by_resource_type = 7;
+  // Per-entitlement-resource-type grant counts (drives GrantStats).
+  // The "resource_type" here is the entitlement's resource-type
+  // (matching the SQLite grants table's resource_type_id column
+  // semantic, NOT the principal's resource type).
+  map<string, int64> grants_by_entitlement_resource_type = 8;
+  // Per-resource-type entitlements counts: keyed by resource_type_id.
+  map<string, int64> entitlements_by_resource_type = 9;
+
+  // Timing / call stats. Ledgered syncs hand these to the engine directly
+  // at EndSync (the fold of every LedgerCounterBucket); token-only
+  // syncs still have them lifted from the syncer token. Mirror of
+  // c1.reader.v2.SyncStats fields 9–11 (storage cannot import reader
+  // protos; CallStat is duplicated below). Compacted outputs omit these maps.
+  map<string, int64> step_durations_ms = 10;
+  map<string, CallStat> connector_call_stats = 11;
+  map<string, CallStat> session_store_stats = 12;
+  // Connector-ingestion quality for the original sync. Presence distinguishes
+  // a clean sync recorded by a quality-aware SDK from an older/unknown sync.
+  // Compacted syncs omit this field: source-cache replay is not supported for
+  // compacted artifacts and ingestion counters do not compose through merges.
+  IngestQualityStats ingest_quality = 13;
+  // Compaction provenance, set only on compacted outputs (previously a
+  // section of the sync token; the token is not written for ledgered syncs).
+  CompactionProvenance compaction = 14;
+
+  google.protobuf.Timestamp written_at = 100;
+}
+
+// CompactionProvenance records what a compaction produced and from what.
+message CompactionProvenance {
+  // Compactor mode (fold, kway, overlay).
+  string mode = 1;
+  reserved 2;
+  reserved "stats_sync_id";
+  string base_sync_id = 3;
+  repeated string partial_sync_ids = 4;
+  int64 partial_count = 5;
+  // Counts at merge completion, before any subsequent grant expansion.
+  // Per record-type output totals, plus added/replaced/carried attribution when
+  // the mode can tell (fold).
+  map<string, CompactionRecordCounts> record_counts = 6;
+}
+
+message CompactionRecordCounts {
+  int64 output = 1;
+  int64 added = 2;
+  int64 replaced = 3;
+  int64 carried = 4;
+}
+
+message IngestQualityStats {
+  // Monotone within a sync. Replay consumers must also treat an absent
+  // IngestQualityStats message as ineligible (unknown legacy provenance).
+  bool source_cache_replay_blocked = 1;
+  uint64 entitlements_dropped = 2;
+  uint64 grants_dropped = 3;
+  uint64 grant_resources_dropped = 4;
+  uint64 expansion_resource_types_dropped = 5;
+  uint64 expansions_dropped = 6;
+  // Bitset of SDK-owned quality reasons. Bits 0..7 are entitlement dropped,
+  // grant dropped, grant-inserted resource dropped, expansion resource type
+  // dropped, expansion dropped, invalid row retained, unknown prior
+  // checkpoint provenance, and action restarted after the connector
+  // invalidated its page token, respectively.
+  // Counts remain useful diagnostics; reason flags carry replay eligibility
+  // even for warn-and-retain policies that do not drop a row.
+  uint64 reason_flags = 7;
+  // Attempt-level observations. A retry or resumed page may observe the same
+  // malformed connector record again.
+  uint64 invalid_resource_types_observed = 8;
+  uint64 invalid_resources_observed = 9;
+  uint64 invalid_entitlements_observed = 10;
+}
+
+// LedgerActionIdentity is the semantic identity of one syncer action
+// instance: the flat tuple that determines the connector request the
+// action's page makes (docs/tasks/sound-syncs-solutions-brief.md §3.2).
+// Equal identity ⇒ equal work. Field names mirror pkg/sync.Action; the
+// op is the action kind's stable string name so storage never imports
+// the syncer's enum.
+message LedgerActionIdentity {
+  string op = 1;
+  string resource_type_id = 2;
+  string resource_id = 3;
+  string parent_resource_type_id = 4;
+  string parent_resource_id = 5;
+  // The page token the action was AT (its request's cursor). Verbatim
+  // unless the row was scrubbed (LedgerRow.scrubbed), in which case
+  // empty; page_token_hash always identifies it.
+  string page_token = 6;
+  // 16-byte truncated SHA-256 of page_token. The ledger key carries
+  // this instead of the token (bounded key size); the read-side
+  // identity compare uses it when the verbatim token is absent.
+  bytes page_token_hash = 7;
+  bool type_scoped = 8;
+}
+
+// LedgerChild is an action a page pushed. spawned is the syncer's
+// accounting flag for a connector-enqueued sibling cursor; it is not
+// part of the child's identity.
+message LedgerChild {
+  LedgerActionIdentity identity = 1;
+  bool spawned = 2;
+  uint64 work_id = 3;
+}
+
+// Completion observations committed with records and pending-work updates.
+message LedgerRow {
+  // Request arguments; work_id and work_revision distinguish executions.
+  LedgerActionIdentity identity = 1;
+  // Cursor for the action's next page; empty means the action
+  // finished on this page, unless restarted is set, in which case it is
+  // the token the action restarts at (empty: its first page). Scrubbed to
+  // empty with next_page_token_hash retained when scrubbed is set.
+  string next_page_token = 2;
+  bytes next_page_token_hash = 3;
+  repeated LedgerChild children = 4;
+  // Attempt that committed the page (the syncer's attempt epoch) and
+  // when.
+  string attempt = 5;
+  google.protobuf.Timestamp committed_at = 6;
+  // Records staged in the page's batch, by kind.
+  uint64 resource_types_written = 7;
+  uint64 resources_written = 8;
+  uint64 entitlements_written = 9;
+  uint64 grants_written = 10;
+  // The page's rows came from source-cache replay rather than a fresh
+  // connector fetch.
+  bool replayed = 11;
+  // Post-transition action state that must ride in the row (brief
+  // §3.2 structural finding 2): row present ⇒ type-scoped planning ran.
+  bool type_scoped_planned = 12;
+  // Tokens (identity.page_token, next_page_token, children tokens)
+  // were replaced by their hashes at seal because the connector
+  // declared its page tokens sensitive.
+  bool scrubbed = 13;
+  // Per-page timings (brief §3.12): wall time of the handler, time
+  // spent inside connector calls, and time spent waiting (rate-limit
+  // and retry sleeps). Milliseconds; zero when not measured.
+  uint64 page_ms = 14;
+  uint64 connector_ms = 15;
+  uint64 wait_ms = 16;
+  // The page's own action was a spawned cursor (see LedgerChild).
+  bool spawned = 17;
+  bool observations_recorded = 18;
+  uint64 connector_attempts = 19;
+  uint64 connector_errors = 20;
+  uint64 sdk_retry_wait_ms = 21;
+  uint64 sdk_rate_limit_wait_ms = 22;
+  LedgerCollectionStats collection = 23;
+  uint64 work_id = 24;
+  uint64 work_revision = 25;
+  // The connector invalidated this page's token (RestartAction). The
+  // page wrote no records or children; the work item continues at
+  // next_page_token with revision + 1, not finished.
+  bool restarted = 26;
+}
+
+message LedgerCollectionStats {
+  uint64 list_responses = 1;
+  uint64 empty_list_responses = 2;
+  uint64 empty_list_responses_with_continuation = 3;
+  uint64 resource_types_received = 4;
+  uint64 resources_received = 5;
+  uint64 entitlements_received = 6;
+  uint64 grants_received = 7;
+  uint64 resource_types_excluded_by_selection = 8;
+  uint64 entitlements_excluded_by_type = 9;
+  uint64 grants_excluded_by_type = 10;
+  uint64 derived_resources_excluded_by_type = 11;
+  uint64 resource_types_excluded_invalid = 12;
+  uint64 resources_excluded_invalid = 13;
+  uint64 entitlements_excluded_invalid = 14;
+}
+
+// LedgerCounterBucket is one (run, worker) bucket of sync-level
+// counters and stats (brief §3.6, §3.13). Every page commit blind-writes
+// its worker's whole bucket (cached total + this page's delta) in the
+// page's batch, so the contents are exactly as durable as the pages
+// that produced them; the sync-level value is the fold over every
+// bucket (counters, totals and durations sum; max latencies take the
+// max; flags OR). Buckets are keyed by a per-Sync()-invocation run id
+// and a worker index, so a resume with a different worker count never
+// overwrites a prior run's buckets. One reserved worker index per run
+// holds the run-level stats that are not page-shaped (phase durations,
+// session-store calls), blind-written best-effort at phase boundaries,
+// stop and seal. Names are the syncer's; the engine treats them as
+// opaque.
+message LedgerCounterBucket {
+  map<string, uint64> counters = 1;
+  // Bitset OR'd across the run (the syncer's ingest-quality reasons).
+  uint64 flags = 2;
+  // Connector calls made by this worker's committed pages, by method.
+  map<string, CallStat> connector_calls = 3;
+  // Run-level (reserved worker index only): phase wall time by step
+  // name, and session-store calls by op.
+  map<string, int64> step_durations_ms = 4;
+  map<string, CallStat> session_calls = 5;
+}
+
+// LedgerFrontier is the takeover record for a sync that began under a
+// token-only SDK (brief §3.8): the checkpoint token's serialized state
+// (the action stack and phase flags) moved into the ledger family in
+// the same batch that clears the sync run's token. Resume under atomic
+// pages loads the stack from here and walks the ledger forward; the
+// token is never consulted again for that sync.
+message LedgerFrontier {
+  string state = 1;
+  string attempt = 2;
+  google.protobuf.Timestamp taken_over_at = 3;
+}
+
+// CallStat mirrors c1.reader.v2.CallStat for the storage sidecar.
+message CallStat {
+  int64 count = 1;
+  int64 total_ms = 2;
+  int64 max_ms = 3;
+  int64 errors = 4;
+  int64 timeouts = 5;
+}
+
+message SessionRecord {
+  option (table) = {
+    name: "sessions"
+    primary_key: [
+      "sync_id",
+      "key"
+    ]
+  };
+
+  string sync_id = 1;
+  string key = 2;
+  bytes value = 3;
+}
+
+// SourceCacheEntryRecord is the per-scope manifest entry for source-cache
+// replay (see c1/connector/v2/annotation_source_cache.proto). One entry
+// per (row_kind, scope_key), written for every freshly fetched scope —
+// including zero-row responses — and rewritten on replay with the scope's
+// current validator. The previous sync's entries (read from the previous
+// c1z) are the lookup surface connectors revalidate against.
+message SourceCacheEntryRecord {
+  option (table) = {
+    name: "source_cache_entries"
+    primary_key: [
+      "row_kind",
+      "scope_key"
+    ]
+  };
+
+  // Row kind partition: "resources", "entitlements", or "grants"
+  // (pkg/sourcecache.RowKind values).
+  string row_kind = 1;
+
+  // Connector-computed stable scope identifier (conventionally lowercase
+  // hex when hashed via sourcecache.HashScope; any byte-stable string).
+  string scope_key = 2;
+
+  // Opaque upstream validator: HTTP ETag, delta token, etc.
+  string cache_validator = 3;
+
+  google.protobuf.Timestamp discovered_at = 4;
+
+  // Set when the dangling-reference drops (ingestion invariants I7/I8/I9,
+  // pkg/sync/ingest_invariants.go) deleted rows stamped with this scope:
+  // the artifact no longer holds the full row set the validator vouches
+  // for, so a future sync must not 304-replay it. Lookups treat an
+  // invalidated entry as a miss (the scope re-fetches cold and converges
+  // with a cold sync); the entry itself is kept so the scope's surviving
+  // stamped rows do not read as an I6 orphan (lost manifest write).
+  bool invalidated = 5;
+
+  // Number of primary rows stamped with this scope at seal time,
+  // recomputed by EndSync from the primary keyspace (never maintained
+  // incrementally). Replay preflight requires the scope's index
+  // cardinality to equal this count before mutating the destination;
+  // a replay-eligible entry WITHOUT a count is a hard preflight error
+  // (seal-invariant violation — CO-004 shipped with the manifest format,
+  // so no counting-free artifact population exists). Presence is
+  // explicit so zero remains distinguishable from absent: zero means a
+  // proven empty scope. Cleared when a completed sync is rebound for
+  // mutation and recomputed when it reseals.
+  optional uint64 row_count = 6;
+}
+
+// SourceCacheCompatRecord is the sync's replay-compatibility key: the
+// exact conditions under which this artifact's source-cache manifest was
+// recorded. A future sync may replay from this artifact ONLY when its
+// own key matches byte-exactly on every component; an absent, unreadable,
+// or mismatched record degrades that sync to cold (no-op lookup).
+// Compatibility is never inferred from versions — each component is an
+// explicit declaration by its owner.
+//
+// One record per sync, written when the write side of the source cache
+// enables (before any manifest entry), cleared by compaction folds with
+// the manifest.
+message SourceCacheCompatRecord {
+  option (table) = {
+    name: "source_cache_compat"
+    primary_key: ["id"]
+  };
+
+  // Fixed singleton id ("compat"); present so the record satisfies the
+  // table shape.
+  string id = 1;
+
+  // Connector-declared components (SourceCacheCapability annotations):
+  // the connector's cache generation and configuration/permission
+  // fingerprint.
+  string connector_cache_generation = 2;
+  string connector_config_fingerprint = 3;
+
+  // SDK materialization-policy generation: bumped when the SDK changes
+  // how response rows or their side effects materialize into the store
+  // in a replay-visible way (sourcecache.MaterializationPolicyGeneration).
+  string sdk_materialization_generation = 4;
+
+  // SDK sync-selection fingerprint: digest of the sync-shaping inputs
+  // (enabled resource types, skip flags) — a selection change means the
+  // prior artifact's scopes cover a different row universe.
+  string sync_selection_fingerprint = 5;
+}

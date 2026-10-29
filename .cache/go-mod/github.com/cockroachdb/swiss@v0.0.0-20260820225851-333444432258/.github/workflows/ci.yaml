@@ -1,0 +1,134 @@
+name: Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+        go:
+          - '1.24'
+          - '1.25'
+          - '1.26'
+          - '1.27'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go }}
+
+    - run: go test -v -tags swiss_invariants
+
+  linux-noswissmap:
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - '1.24'
+          - '1.25'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version:  ${{ matrix.go }}
+
+      - run: GOEXPERIMENT=noswissmap go test -v
+
+  linux-race:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - '1.24'
+          - '1.25'
+          - '1.26'
+          - '1.27'
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+
+      - run: go test -v -race
+
+
+  linux-32bit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - '1.24'
+          - '1.25'
+          - '1.26'
+          - '1.27'
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+
+      - run: GOARCH=386 go test -v -tags swiss_invariants
+
+  linux-qemu-s390x:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - '1.24.4'
+          - '1.25.5'
+          - '1.26.7'
+          - '1.27.0'
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install qemu
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static
+          qemu-s390x-static --version
+
+      - name: ubuntu-core:s390x-focal
+        shell: bash
+        run: |
+          docker run --rm --privileged \
+            -v "${{ github.workspace }}:/swiss" \
+            multiarch/ubuntu-core:s390x-focal \
+            bash -c "
+                uname -a &&
+                lscpu | grep Endian &&
+                apt-get update &&
+                apt-get install -y wget &&
+                wget -q 'https://go.dev/dl/go${{ matrix.go }}.linux-s390x.tar.gz' &&
+                tar xzf 'go${{ matrix.go }}.linux-s390x.tar.gz' -C /usr/local &&
+                export PATH="$PATH:/usr/local/go/bin" &&
+                cd /swiss &&
+                go version &&
+                go env &&
+                go test -v ./... &&
+                go test -v -tags swiss_invariants ./...
+            "

@@ -1,0 +1,113 @@
+setup-inputs a a
+L0
+  a.SET.1-b.SET.2
+----
+L0
+  000001:[a#1,SET-b#2,SET]
+
+setup-inputs c c
+L0
+  a.SET.1-b.SET.2
+----
+
+# The range deletion sentinel acts as a clean cut boundary.
+setup-inputs a a
+L1
+  a.SET.1-b.RANGEDEL.inf
+  b.SET.1-c.SET.2
+----
+L1
+  000001:[a#1,SET-b#inf,RANGEDEL]
+
+# Verify we expand the output level inputs to a clean cut.
+setup-inputs a a
+L1
+  a.SET.5-b.SET.6
+L2
+  a.SET.3-c.RANGEDEL.inf
+  c.SET.3-d.SET.2
+----
+L1
+  000001:[a#5,SET-b#6,SET]
+L2
+  000002:[a#3,SET-c#inf,RANGEDEL]
+
+# Verify we grow the start level inputs to include all sstables which
+# lie within the output level bounds.
+setup-inputs a a
+L1
+  a.SET.5-b.SET.6
+  c.SET.4-e.SET.3
+L2
+  a.SET.3-d.SET.4
+----
+L1
+  000001:[a#5,SET-b#6,SET]
+  000002:[c#4,SET-e#3,SET]
+L2
+  000003:[a#3,SET-d#4,SET]
+
+# Verify we limit the start level input expansion according to available
+# disk capacity.
+setup-inputs avail-bytes=10 a a
+L1
+  a.SET.5-b.SET.6 size=2
+  c.SET.4-e.SET.3 size=1
+L2
+  a.SET.3-d.SET.4 size=3
+----
+L1
+  000001:[a#5,SET-b#6,SET]
+L2
+  000003:[a#3,SET-d#4,SET]
+
+# We won't grow the start level inputs if doing so would grow the
+# output level inputs.
+setup-inputs a a
+L1
+  a.SET.5-b.SET.6
+  c.SET.4-e.SET.3
+L2
+  a.SET.3-d.SET.4
+  e.SET.2-f.SET.1
+----
+L1
+  000001:[a#5,SET-b#6,SET]
+L2
+  000003:[a#3,SET-d#4,SET]
+
+# Verify setup inputs can identify compacting files in range
+setup-inputs a d
+L1
+  a.SET.5-f.SET.6
+L2
+  a.SET.3-c.SET.4
+  d.SET.3-e.SET.2 compacting
+  f.SET.3-g.SET.6
+----
+L1
+  000001:[a#5,SET-f#6,SET]
+L2
+  000002:[a#3,SET-c#4,SET]
+  000003:[d#3,SET-e#2,SET]
+  000004:[f#3,SET-g#6,SET]
+is-compacting
+
+# Verify when there is one file in range and it is compacting
+setup-inputs a a
+L2
+  a.SET.3-c.SET.4 compacting
+  d.SET.3-e.SET.2
+----
+L2
+  000001:[a#3,SET-c#4,SET]
+is-compacting
+
+# Verify when there is one file in level and is compacting
+setup-inputs a a
+L2
+  a.SET.3-c.SET.4 compacting
+----
+L2
+  000001:[a#3,SET-c#4,SET]
+is-compacting

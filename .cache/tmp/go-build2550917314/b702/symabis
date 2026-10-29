@@ -1,0 +1,2 @@
+def github.com/klauspost/compress/s2.s2Decode ABI0
+ref runtime.memmove ABI0

@@ -1,0 +1,8 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile github.com/cockroachdb/pebble/v2/internal/base=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b647/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/invariants=/data/squire/cache/go/plaid-cache/blob/output/10/101330f93f3270c93c055dd6e94632866c493b4e4a3f8edb14a5bb29e716e231
+packagefile github.com/cockroachdb/pebble/v2/internal/keyspan=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b664/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/keyspan/keyspanimpl=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b724/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/manifest=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b666/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/rangekey=/data/squire/cache/go/plaid-cache/blob/output/fd/fd463b6486d3280371894656ed7a0422ce546c515e594ed55a92521d0ad6d258

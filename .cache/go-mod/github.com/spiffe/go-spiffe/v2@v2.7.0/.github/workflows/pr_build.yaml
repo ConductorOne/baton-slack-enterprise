@@ -1,0 +1,98 @@
+name: PR Build
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+jobs:
+  lint-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          cache: true
+          cache-dependency-path: go.sum
+          go-version-file: go.mod
+      - name: Lint
+        run: make lint
+
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          cache: true
+          cache-dependency-path: go.sum
+          go-version-file: go.mod
+      - name: Test
+        run: make test
+
+  lint-windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          cache: true
+          cache-dependency-path: go.sum
+          go-version-file: go.mod
+      - name: Install msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            base-devel 
+            mingw-w64-x86_64-toolchain 
+            unzip 
+      - name: Lint
+        run: make lint
+
+  test-windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          cache: true
+          cache-dependency-path: go.sum
+          go-version-file: go.mod
+      - name: Install msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            base-devel 
+            mingw-w64-x86_64-toolchain 
+            unzip 
+      - name: Test
+        run: make test
+
+  # This job is just here to make sure that the other jobs have completed
+  # and is used as a single job to block PR merge from. GH doesn't have a
+  # way to say "all jobs from this action", which would be ideal.
+  success:
+    needs: [lint-linux, test-linux, lint-windows, test-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Shout it out
+        run: echo SUCCESS
+

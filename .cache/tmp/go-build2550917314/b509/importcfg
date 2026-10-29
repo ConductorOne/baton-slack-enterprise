@@ -1,0 +1,9 @@
+# import config
+packagefile go.opentelemetry.io/otel/attribute=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b385/_pkg_.a
+packagefile go.opentelemetry.io/otel/log=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b487/_pkg_.a
+packagefile go.opentelemetry.io/otel/sdk/instrumentation=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b510/_pkg_.a
+packagefile go.opentelemetry.io/otel/sdk/log=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b511/_pkg_.a
+packagefile go.opentelemetry.io/proto/otlp/common/v1=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b522/_pkg_.a
+packagefile go.opentelemetry.io/proto/otlp/logs/v1=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b523/_pkg_.a
+packagefile go.opentelemetry.io/proto/otlp/resource/v1=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b524/_pkg_.a
+packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

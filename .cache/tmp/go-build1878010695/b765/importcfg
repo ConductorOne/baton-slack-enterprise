@@ -1,0 +1,5 @@
+# import config
+packagefile modernc.org/libc=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b757/_pkg_.a
+packagefile reflect=/data/squire/cache/go/plaid-cache/blob/output/e2/e24be136b7a192c9dabc6525e9b825a53280f3bb305d349fbbe6df8418fed470
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile syscall=/data/squire/cache/go/plaid-cache/blob/output/f5/f5e5dc1a4088ac23e2fb12fac8c50c6dde96b769c641cc88f437e26608410075

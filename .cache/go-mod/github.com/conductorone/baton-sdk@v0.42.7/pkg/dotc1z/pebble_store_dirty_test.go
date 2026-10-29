@@ -1,0 +1,241 @@
+package dotc1z
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/conductorone/baton-sdk/pkg/connectorstore"
+	"github.com/conductorone/baton-sdk/pkg/dotc1z/c1zstore"
+)
+
+// TestPebbleStoreGrantsStoreExpandedGrantsMarksDirty exercises
+// the dirty-flag escape that the PR review bot flagged: writes that
+// went through Grants().StoreExpandedGrants() were calling
+// Adapter.PutGrants directly (bypassing pebbleStore's dirty
+// flag), so Close would skip the c1z save. The fix overrides
+// Grants() on pebbleStore to wrap StoreExpandedGrants through
+// the dirty-marking path.
+func TestPebbleStoreGrantsStoreExpandedGrantsMarksDirty(t *testing.T) {
+	ctx := context.Background()
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "dirty.c1z")
+
+	store, err := NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	_, err = store.StartNewSync(ctx, connectorstore.SyncTypeFull, "")
+	require.NoError(t, err)
+	// The only mutating GrantStore method.
+	require.NoError(t, store.Grants().StoreExpandedGrants(ctx,
+		mkV2Grant("g1", "ent", "user", "alice"),
+	))
+	require.NoError(t, store.EndSync(ctx))
+	require.NoError(t, store.Close(ctx))
+	// Close should have saved a c1z to outPath; if the dirty flag
+	// stayed false the save would skip and outPath would be empty/missing.
+	fi, err := os.Stat(path)
+	require.NoError(t, err, "clone stat: %v", err)
+	require.NotZero(t, fi.Size(), "c1z size = 0; pebble store didn't flush after StoreExpandedGrants")
+}
+
+// TestPebbleStorePageCommitMarksDirty pins the dirty flag for the page
+// unit: a sync whose only writes went through BeginPage().Commit must
+// still be saved into the c1z at Close.
+func TestPebbleStorePageCommitMarksDirty(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "dirty-page.c1z")
+
+	store, err := NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	ledger, ok := store.(c1zstore.PageLedgerStore)
+	require.True(t, ok, "the pebble store implements the page ledger")
+	syncID, err := store.StartNewSync(ctx, connectorstore.SyncTypeFull, "")
+	require.NoError(t, err)
+
+	require.NoError(t, ledger.BeginCollecting(ctx, nil, nil))
+	require.NoError(t, store.Close(ctx))
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	require.NoError(t, store.SetCurrentSync(ctx, syncID))
+	ledger = store.(c1zstore.PageLedgerStore)
+	w := ledger.BeginPage()
+	require.NoError(t, w.PutGrants(ctx, mkV2Grant("g1", "ent", "user", "alice")))
+	id := c1zstore.LedgerActionIdentity{Op: "SyncGrants", ResourceTypeID: "app", ResourceID: "github"}
+	require.NoError(t, w.Commit(ctx, id, nil))
+	_, found, err := ledger.GetLedgerRow(ctx, id)
+	require.NoError(t, err)
+	require.True(t, found)
+
+	require.NoError(t, store.Close(ctx))
+	fi, err := os.Stat(path)
+	require.NoError(t, err)
+	require.NotZero(t, fi.Size(), "c1z size = 0; pebble store didn't flush after a page commit")
+
+	reopened, err := NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, reopened.Close(ctx)) }()
+	_, found, err = reopened.(c1zstore.PageLedgerStore).GetLedgerRow(ctx, id)
+	require.NoError(t, err)
+	require.True(t, found)
+}
+
+// TestPebbleStoreDropLedgerMarksDirty pins the dirty flag for
+// DropLedger, the one PageLedgerStore write that was promoted from the
+// embedded Engine without a wrapper.
+//
+// The documented caller rebinds a FINISHED sync and drops the old
+// ledger so the next run does not read every prior action as done. That
+// store is otherwise clean, so the drop is the only write in the
+// session: without the mark, Close skips save() and deletes the temp
+// DB, the wipe never reaches the c1z, and the next open still
+// enumerates the old rows. The sync then skips work it never did, which
+// is silent under-collection rather than a visible failure.
+func TestPebbleStoreDropLedgerMarksDirty(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "reset-ledger-dirty.c1z")
+	id := c1zstore.LedgerActionIdentity{Op: "SyncGrants", ResourceTypeID: "app", ResourceID: "github"}
+
+	store, err := NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	_, err = store.StartNewSync(ctx, connectorstore.SyncTypeFull, "")
+	require.NoError(t, err)
+	require.NoError(t, store.(c1zstore.PageLedgerStore).BeginCollecting(ctx, nil, nil))
+	w := store.(c1zstore.PageLedgerStore).BeginPage()
+	require.NoError(t, w.PutGrants(ctx, mkV2Grant("g1", "ent", "user", "alice")))
+	require.NoError(t, w.Commit(ctx, id, nil))
+	require.NoError(t, sealLedger(t, ctx, store.(c1zstore.PageLedgerStore), c1zstore.SyncStats{}))
+	require.NoError(t, store.Close(ctx))
+
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	ledger, ok := store.(c1zstore.PageLedgerStore)
+	require.True(t, ok)
+	_, found, err := ledger.GetLedgerRow(ctx, id)
+	require.NoError(t, err)
+	require.True(t, found, "the sealed artifact carries its ledger")
+	require.NoError(t, ledger.DropLedger(ctx))
+	require.NoError(t, store.Close(ctx))
+
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble), WithReadOnly(true))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, store.Close(ctx)) }()
+	_, found, err = store.(c1zstore.PageLedgerStore).GetLedgerRow(ctx, id)
+	require.NoError(t, err)
+	require.False(t, found, "a drop-only session must save; otherwise the next run skips completed actions it never ran")
+}
+
+// TestPebbleStoreSyncMetaMarksDirty pins the same dirty-flag escape for
+// the SyncMeta mutators: a standalone metadata stamp on a REOPENED c1z
+// (nothing else set the dirty flag in the session) must survive Close.
+// Before pebbleStore overrode SyncMeta(), MarkIngestInvariantsVerified
+// wrote to the engine but Close skipped the envelope save and the
+// marker vanished with the temp dir.
+func TestPebbleStoreSyncMetaMarksDirty(t *testing.T) {
+	ctx := context.Background()
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "meta-dirty.c1z")
+
+	store, err := NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	syncID, err := store.StartNewSync(ctx, connectorstore.SyncTypeFull, "")
+	require.NoError(t, err)
+
+	verification := c1zstore.IngestInvariantVerification{
+		Generation: "test-generation",
+		Coverage:   []string{"I5"},
+		Mode:       c1zstore.IngestInvariantVerificationModeConnector,
+	}
+	writer, ok := store.SyncMeta().(c1zstore.IngestInvariantVerificationWriter)
+	require.True(t, ok)
+	// The marker is only writable on a sealed sync.
+	require.Error(t, writer.MarkIngestInvariantsVerified(ctx, syncID, verification),
+		"marking an unfinished sync must be refused")
+	require.NoError(t, store.EndSync(ctx))
+	require.NoError(t, store.Close(ctx))
+
+	// Reopen CLEAN (no sync started, nothing dirties the store) and stamp
+	// only the marker.
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	writer, ok = store.SyncMeta().(c1zstore.IngestInvariantVerificationWriter)
+	require.True(t, ok)
+	require.NoError(t, writer.MarkIngestInvariantsVerified(ctx, syncID, verification))
+	require.NoError(t, store.Close(ctx))
+
+	// The stamp-only session must have saved the envelope.
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble), WithReadOnly(true))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, store.Close(ctx)) }()
+	run, err := store.SyncMeta().LatestFinishedSyncOfAnyType(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, run)
+	require.Equal(t, verification, run.IngestInvariantVerification,
+		"a standalone SyncMeta stamp must survive close/reopen")
+}
+
+func TestPebbleStoreBeginPassMarksDirty(t *testing.T) {
+	ctx := t.Context()
+	path := filepath.Join(t.TempDir(), "clear-rows.c1z")
+	store, err := NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	syncID, err := store.StartNewSync(ctx, connectorstore.SyncTypeFull, "")
+	require.NoError(t, err)
+	ledger := store.(c1zstore.PageLedgerStore)
+	id := c1zstore.LedgerActionIdentity{Op: "completed"}
+	require.NoError(t, ledger.BeginCollecting(ctx, nil, nil))
+	page := ledger.BeginPage()
+	require.NoError(t, page.SetFact("finished"))
+	require.NoError(t, page.SetFact("history"))
+	require.NoError(t, page.SetCounterBucket("prior", 0, c1zstore.LedgerCounters{Counters: map[string]uint64{"completed": 3}}))
+	require.NoError(t, page.Commit(ctx, id, nil))
+	page.Discard()
+	require.NoError(t, sealLedger(t, ctx, ledger, c1zstore.SyncStats{}))
+	require.NoError(t, store.Close(ctx))
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	require.NoError(t, store.SetCurrentSync(ctx, syncID))
+	require.NoError(t, store.(c1zstore.PageLedgerStore).BeginPass(ctx, nil, []string{"finished"}))
+	require.NoError(t, store.Close(ctx))
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, store.Close(ctx)) }()
+	ledger = store.(c1zstore.PageLedgerStore)
+	_, found, err := ledger.GetLedgerRow(ctx, id)
+	require.NoError(t, err)
+	require.False(t, found)
+	facts, err := ledger.LedgerFacts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"history": "", c1zstore.LedgerFactFollowOnPass: ""}, facts)
+	counters, err := ledger.LedgerCounters(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, counters.Counters["completed"])
+}
+
+func TestPebbleStorePendingWorkSurvivesClose(t *testing.T) {
+	ctx := t.Context()
+	path := filepath.Join(t.TempDir(), "pending.c1z")
+	store, err := NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	syncID, err := store.StartNewSync(ctx, connectorstore.SyncTypeFull, "")
+	require.NoError(t, err)
+	require.NoError(t, store.Close(ctx))
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	require.NoError(t, store.SetCurrentSync(ctx, syncID))
+	ledger := store.(c1zstore.PageLedgerStore)
+	work := c1zstore.LedgerWork{Action: c1zstore.LedgerChild{Identity: c1zstore.LedgerActionIdentity{Op: "list-resources", PageToken: "first"}}}
+	require.NoError(t, ledger.BeginCollecting(ctx, []c1zstore.LedgerWork{work}, nil))
+	require.NoError(t, store.Close(ctx))
+	store, err = NewStore(ctx, path, WithEngine(c1zstore.EnginePebble))
+	require.NoError(t, err)
+	defer store.Close(ctx)
+	ledger = store.(c1zstore.PageLedgerStore)
+	pending, initialized, err := ledger.PendingWork(ctx, 0, 64)
+	require.NoError(t, err)
+	require.NotEqual(t, c1zstore.LedgerQueueAbsent, initialized)
+	require.Len(t, pending, 1)
+	require.Equal(t, work.Action, pending[0].Action)
+}

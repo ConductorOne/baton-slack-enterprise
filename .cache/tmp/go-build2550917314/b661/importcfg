@@ -1,0 +1,4 @@
+# import config
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile regexp=/data/squire/cache/go/plaid-cache/blob/output/1f/1f55e02f6b242a0fa75b99fefc1ae1acf3939d6759274d09a3a1a46781272468
+packagefile runtime/debug=/data/squire/cache/go/plaid-cache/blob/output/31/31c5bf00856c1a6b4644e4428ca31dae4bffe8699fb5acffebe47690dbe3d36d

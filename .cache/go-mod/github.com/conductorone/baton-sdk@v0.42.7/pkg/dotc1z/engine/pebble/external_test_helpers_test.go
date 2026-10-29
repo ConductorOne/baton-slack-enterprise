@@ -1,0 +1,70 @@
+package pebble_test
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/dotc1z/engine/pebble"
+	batonGrant "github.com/conductorone/baton-sdk/pkg/types/grant"
+)
+
+// newAdapter opens a fresh engine in a temp dir and wraps it in an
+// Adapter, registering cleanup. External-package twin of the
+// in-package newAdapter helper.
+func newAdapter(t testing.TB) *pebble.Adapter {
+	t.Helper()
+	dbDir := filepath.Join(t.TempDir(), "db")
+	e, err := pebble.Open(context.Background(), dbDir)
+	require.NoError(t, err, "Open")
+	t.Cleanup(func() {
+		// Ride-along leak oracle — see newTestEngine in engine_test.go.
+		require.NoError(t, e.Close(), "engine Close must be clean (leaked iterators/Get closers/batches are reported here)")
+	})
+	return pebble.NewAdapter(e)
+}
+
+// mkV2Grant builds a minimal v2.Grant for external (pebble_test)
+// tests. Mirrors the in-package helper of the same name in
+// adapter_test.go.
+func mkV2Grant(id, entID, principalRT, principalID string) *v2.Grant {
+	canonicalEntID := "app:github:" + entID
+	ent := v2.Entitlement_builder{
+		Id: canonicalEntID,
+		Resource: v2.Resource_builder{
+			Id: v2.ResourceId_builder{
+				ResourceType: "app",
+				Resource:     "github",
+			}.Build(),
+		}.Build(),
+	}.Build()
+	principal := v2.Resource_builder{
+		Id: v2.ResourceId_builder{
+			ResourceType: principalRT,
+			Resource:     principalID,
+		}.Build(),
+	}.Build()
+	return v2.Grant_builder{
+		Id:          batonGrant.NewGrantID(principal, ent),
+		Entitlement: ent,
+		Principal:   principal,
+	}.Build()
+}
+
+// mkV2GrantImmutable is mkV2Grant plus a GrantImmutable annotation —
+// the shape real synthesized (expander-derived) grants carry
+// unconditionally (see fillSynthGrantRecord in grants_synth_encode.go),
+// for benchmarks that need to cost the grant-digest seal-time
+// annotation walk (appendGrantHashIndexRow's scanGrantContentFactsRawBytes
+// / scanAnyEntryIsTypeRaw) rather than skip it.
+func mkV2GrantImmutable(id, entID, principalRT, principalID string) *v2.Grant {
+	g := mkV2Grant(id, entID, principalRT, principalID)
+	annos := annotations.Annotations(g.GetAnnotations())
+	annos.Update(&v2.GrantImmutable{})
+	g.SetAnnotations(annos)
+	return g
+}

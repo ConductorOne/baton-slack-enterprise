@@ -1,0 +1,54 @@
+name: test
+
+on:
+  pull_request:
+    branches: ['*']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+
+    name: Run tests
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go: ["1.19.x", "1.20.x"]
+        include:
+        - go: 1.20.x
+          latest: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: '**/go.sum'
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Lint
+        if: matrix.latest
+        run: make lint
+
+      - name: Test
+        run: make test
+
+      - name: Make coverage
+        if: matrix.latest
+        run: make cover
+          
+      - name: Upload coverage to codecov.io
+        if: matrix.latest
+        uses: codecov/codecov-action@v3
+
+      # TODO decide whether we want to benchmark on every run.
+      #  name: Benchmark
+      #  run: make bench

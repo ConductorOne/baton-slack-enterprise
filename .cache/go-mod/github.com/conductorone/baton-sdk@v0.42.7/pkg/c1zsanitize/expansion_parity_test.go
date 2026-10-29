@@ -1,0 +1,605 @@
+package c1zsanitize
+
+import (
+	"bytes"
+	"context"
+	"io"
+	"path/filepath"
+	"sort"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+
+	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/connectorstore"
+	"github.com/conductorone/baton-sdk/pkg/dotc1z"
+	"github.com/conductorone/baton-sdk/pkg/dotc1z/c1zstore"
+)
+
+// Fixture identifiers. The cross-engine matrix sanitizes the same logical
+// graph through every engine combination under one secret, so the
+// transformed ids are identical across arms and the outputs are directly
+// comparable.
+const (
+	pfRTUser  = "user"  // declared resource type -> token preserved
+	pfRTRole  = "role"  // declared resource type
+	pfRTGroup = "group" // NOT declared -> token HMAC'd; used to exercise multiset
+
+	pfEntAdmin  = "ent-admin"
+	pfEntReader = "ent-reader"
+
+	pfGrantMultiExpand = "grant-multi-expand" // multi-Ent + multi-RT (with a dup RT)
+	pfGrantDivergence  = "grant-divergence"   // GrantExpandable AND populated Sources
+	pfGrantWhitespace  = "grant-whitespace"   // only blank entitlement ids -> not expandable
+	pfGrantSourced     = "grant-sourced"      // multi-edge Sources, no expansion
+	pfGrantPlain       = "grant-plain"        // neither
+
+	pfAssetID = "icon-asset-1"
+)
+
+// pfSourceIconBytes is the original asset payload. The sanitizer must
+// REPLACE it with a content-type placeholder, never copy these bytes
+// through (that would be an identity leak).
+var pfSourceIconBytes = []byte{0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04}
+
+// buildParityFixture writes the same logical graph into store through the
+// engine-agnostic connectorstore.Writer surface, so the GrantExpandable
+// annotations and Sources land in each engine's real side-state exactly as
+// production files store them.
+func buildParityFixture(t *testing.T, ctx context.Context, store c1zstore.Store) {
+	t.Helper()
+
+	_, err := store.StartNewSync(ctx, connectorstore.SyncTypeFull, "")
+	require.NoError(t, err)
+
+	require.NoError(t, store.PutResourceTypes(ctx,
+		v2.ResourceType_builder{Id: pfRTUser, DisplayName: "User", Traits: []v2.ResourceType_Trait{v2.ResourceType_TRAIT_USER}}.Build(),
+		v2.ResourceType_builder{Id: pfRTRole, DisplayName: "Role", Traits: []v2.ResourceType_Trait{v2.ResourceType_TRAIT_ROLE}}.Build(),
+	))
+
+	// A resolvable asset: PutAsset writes the bytes; a UserTrait icon ref on
+	// a resource carries the id so the sanitizer's resource walk registers it
+	// and copyAssets fetches it (a dangling ref would be skipped and break the
+	// count assertion).
+	require.NoError(t, store.PutAsset(ctx, v2.AssetRef_builder{Id: pfAssetID}.Build(), "image/png", pfSourceIconBytes))
+
+	parent := v2.Resource_builder{
+		Id:          v2.ResourceId_builder{ResourceType: pfRTRole, Resource: "admins"}.Build(),
+		DisplayName: "Admins",
+	}.Build()
+	// children parent_resource_id points at parent -> structural-linkage check.
+	children := make([]*v2.Resource, 0, 5)
+	for i, id := range []string{"alice", "bob", "carol", "dave", "erin"} {
+		display := "User " + id
+		if i == 0 {
+			display = "Alice"
+		}
+		var annos []*anypb.Any
+		if i == 0 {
+			annos = []*anypb.Any{anyTB(t, v2.UserTrait_builder{
+				Login: "alice@acme.com",
+				Icon:  v2.AssetRef_builder{Id: pfAssetID}.Build(),
+			}.Build())}
+		}
+		children = append(children, v2.Resource_builder{
+			Id:               v2.ResourceId_builder{ResourceType: pfRTUser, Resource: id}.Build(),
+			ParentResourceId: v2.ResourceId_builder{ResourceType: pfRTRole, Resource: "admins"}.Build(),
+			DisplayName:      display,
+			Annotations:      annos,
+		}.Build())
+	}
+	require.NoError(t, store.PutResources(ctx, append([]*v2.Resource{parent}, children...)...))
+
+	entAdmin := v2.Entitlement_builder{Id: pfEntAdmin, Resource: parent, DisplayName: "admin", Slug: "admin"}.Build()
+	entReader := v2.Entitlement_builder{Id: pfEntReader, Resource: parent, DisplayName: "reader", Slug: "reader"}.Build()
+	require.NoError(t, store.PutEntitlements(ctx, entAdmin, entReader))
+
+	sources := v2.GrantSources_builder{Sources: map[string]*v2.GrantSources_GrantSource{
+		pfEntAdmin:  v2.GrantSources_GrantSource_builder{IsDirect: true}.Build(),
+		pfEntReader: v2.GrantSources_GrantSource_builder{IsDirect: false}.Build(),
+	}}.Build()
+
+	grants := []*v2.Grant{
+		// multi-EntitlementId + multi-ResourceTypeId, with pfRTGroup duplicated
+		// so the resource_type_ids multiset (multiplicity 2) is exercised.
+		v2.Grant_builder{
+			Id: pfGrantMultiExpand, Entitlement: entAdmin, Principal: children[0],
+			Annotations: annotations.New(v2.GrantExpandable_builder{
+				EntitlementIds:  []string{pfEntAdmin, pfEntReader},
+				Shallow:         true,
+				ResourceTypeIds: []string{pfRTUser, pfRTGroup, pfRTGroup},
+			}.Build()),
+		}.Build(),
+		// Divergence trigger: carries a GrantExpandable AND already-populated
+		// Sources (expanded-but-still-annotated). Proves the first-write
+		// needs_expansion projection is identical across engines for this shape.
+		v2.Grant_builder{
+			Id: pfGrantDivergence, Entitlement: entAdmin, Principal: children[1],
+			Sources: sources,
+			Annotations: annotations.New(v2.GrantExpandable_builder{
+				EntitlementIds: []string{pfEntReader},
+				Shallow:        false,
+			}.Build()),
+		}.Build(),
+		// Blank entitlement ids only -> annotation stripped, needs_expansion=false
+		// on both engines.
+		v2.Grant_builder{
+			Id: pfGrantWhitespace, Entitlement: entReader, Principal: children[2],
+			Annotations: annotations.New(v2.GrantExpandable_builder{
+				EntitlementIds: []string{"  ", ""},
+			}.Build()),
+		}.Build(),
+		// Multi-edge Sources, no expansion.
+		v2.Grant_builder{Id: pfGrantSourced, Entitlement: entReader, Principal: children[3], Sources: sources}.Build(),
+		// Neither.
+		v2.Grant_builder{Id: pfGrantPlain, Entitlement: entAdmin, Principal: children[4]}.Build(),
+	}
+	require.NoError(t, store.PutGrants(ctx, grants...))
+	require.NoError(t, store.EndSync(ctx))
+}
+
+// newEngineStore opens a fresh writable store for the given engine.
+func newEngineStore(t *testing.T, ctx context.Context, path string, eng c1zstore.Engine) c1zstore.Store {
+	t.Helper()
+	s, err := dotc1z.NewStore(ctx, path, dotc1z.WithEngine(eng))
+	require.NoError(t, err)
+	return s
+}
+
+// openEngineStoreRO reopens a store read-only with its latest finished sync
+// selected, so the neutral reader + Grants() surfaces resolve content.
+func openEngineStoreRO(t *testing.T, ctx context.Context, path string) c1zstore.Store {
+	t.Helper()
+	s, err := dotc1z.NewStore(ctx, path, dotc1z.WithReadOnly(true))
+	require.NoError(t, err)
+	latest, err := s.SyncMeta().LatestFinishedSyncOfAnyType(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, latest, "sanitized output must carry a finished sync")
+	require.NoError(t, s.SetCurrentSync(ctx, latest.ID))
+	return s
+}
+
+type expandBlob struct {
+	ents    []string
+	shallow bool
+	rts     []string // multiset: sorted, multiplicity preserved
+}
+
+// pendingExpansionBlobs returns the full GrantExpandable blob for every
+// expandable grant, keyed by the grant external id, read off the
+// needs_expansion index via the neutral Grants().PendingExpansion surface.
+func pendingExpansionBlobs(t *testing.T, ctx context.Context, store c1zstore.Store) map[string]expandBlob {
+	t.Helper()
+	out := map[string]expandBlob{}
+	for pe, err := range store.Grants().PendingExpansion(ctx) {
+		require.NoError(t, err)
+		require.NotNil(t, pe.Annotation, "PendingExpansion row must carry its annotation")
+		ents := append([]string(nil), pe.Annotation.GetEntitlementIds()...)
+		for i, ent := range ents {
+			ents[i] = parityEntitlementID(ent)
+		}
+		sort.Strings(ents)
+		rts := append([]string(nil), pe.Annotation.GetResourceTypeIds()...)
+		sort.Strings(rts) // sorted but NOT deduped -> multiset
+		key := parityEntitlementID(pe.TargetEntitlementID) + "|" + pe.PrincipalResourceTypeID + "/" + pe.PrincipalResourceID
+		out[key] = expandBlob{ents: ents, shallow: pe.Annotation.GetShallow(), rts: rts}
+	}
+	return out
+}
+
+// grantSourcesCanonical returns, per grant id, the sorted expansion-source
+// edge set ("<sourceEntitlementID>=<isDirect>"), read through the neutral
+// ListGrants surface. nil and empty Sources both normalize to an empty slice.
+func grantSourcesCanonical(t *testing.T, ctx context.Context, store c1zstore.Store) map[string][]string {
+	t.Helper()
+	out := map[string][]string{}
+	pageToken := ""
+	for {
+		resp, err := store.ListGrants(ctx, v2.GrantsServiceListGrantsRequest_builder{PageSize: 1000, PageToken: pageToken}.Build())
+		require.NoError(t, err)
+		for _, g := range resp.GetList() {
+			srcMap := g.GetSources().GetSources()
+			edges := make([]string, 0, len(srcMap))
+			for k, v := range srcMap {
+				edges = append(edges, k+"="+boolStr(v.GetIsDirect()))
+			}
+			sort.Strings(edges)
+			out[parityGrantRef(g)] = edges
+		}
+		if resp.GetNextPageToken() == "" {
+			break
+		}
+		pageToken = resp.GetNextPageToken()
+	}
+	return out
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+func grantCount(t *testing.T, ctx context.Context, store c1zstore.Store) int {
+	t.Helper()
+	n := 0
+	pageToken := ""
+	for {
+		resp, err := store.ListGrants(ctx, v2.GrantsServiceListGrantsRequest_builder{PageSize: 1000, PageToken: pageToken}.Build())
+		require.NoError(t, err)
+		n += len(resp.GetList())
+		if resp.GetNextPageToken() == "" {
+			return n
+		}
+		pageToken = resp.GetNextPageToken()
+	}
+}
+
+func resourceCount(t *testing.T, ctx context.Context, store c1zstore.Store) int {
+	t.Helper()
+	resp, err := store.ListResources(ctx, v2.ResourcesServiceListResourcesRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	return len(resp.GetList())
+}
+
+func resourceTypeCount(t *testing.T, ctx context.Context, store c1zstore.Store) int {
+	t.Helper()
+	resp, err := store.ListResourceTypes(ctx, v2.ResourceTypesServiceListResourceTypesRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	return len(resp.GetList())
+}
+
+func entitlementCount(t *testing.T, ctx context.Context, store c1zstore.Store) int {
+	t.Helper()
+	resp, err := store.ListEntitlements(ctx, v2.EntitlementsServiceListEntitlementsRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	return len(resp.GetList())
+}
+
+// fullRecords holds every resource-type, resource, entitlement, and grant
+// record keyed by transformed id (grants by parityGrantRef, their identity
+// on both engines). These families now ride different write paths per
+// destination engine (upserting Put* on sqlite, the non-upserting bulk
+// import on pebble), so the parity oracle pins full record identity — not
+// just cardinality and graph shape — to catch a row one path drops, folds,
+// or mangles field-by-field. For grants this is the only oracle that sees
+// the grant's own transformed external id and its non-expansion
+// annotations; grantRefs/grantSourcesCanonical/pendingExpansionBlobs all
+// key by ref and never look at them.
+type fullRecords struct {
+	rts    map[string]*v2.ResourceType
+	ress   map[string]*v2.Resource
+	ents   map[string]*v2.Entitlement
+	grants map[string]*v2.Grant
+}
+
+func fullRecordSets(t *testing.T, ctx context.Context, store c1zstore.Store) fullRecords {
+	t.Helper()
+	fr := fullRecords{
+		rts:    map[string]*v2.ResourceType{},
+		ress:   map[string]*v2.Resource{},
+		ents:   map[string]*v2.Entitlement{},
+		grants: map[string]*v2.Grant{},
+	}
+	// Single-page reads: if a fixture ever outgrows the page, both arms
+	// would truncate identically and the oracle would silently narrow, so
+	// fail loudly instead of paginating.
+	rts, err := store.ListResourceTypes(ctx, v2.ResourceTypesServiceListResourceTypesRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	require.Empty(t, rts.GetNextPageToken(), "resource-type fixture outgrew one page; oracle would silently truncate")
+	for _, rt := range rts.GetList() {
+		fr.rts[rt.GetId()] = rt
+	}
+	ress, err := store.ListResources(ctx, v2.ResourcesServiceListResourcesRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	require.Empty(t, ress.GetNextPageToken(), "resource fixture outgrew one page; oracle would silently truncate")
+	for _, r := range ress.GetList() {
+		fr.ress[r.GetId().GetResourceType()+"/"+r.GetId().GetResource()] = r
+	}
+	ents, err := store.ListEntitlements(ctx, v2.EntitlementsServiceListEntitlementsRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	require.Empty(t, ents.GetNextPageToken(), "entitlement fixture outgrew one page; oracle would silently truncate")
+	for _, e := range ents.GetList() {
+		fr.ents[e.GetId()] = normalizeEntitlementForParity(e)
+	}
+	grs, err := store.ListGrants(ctx, v2.GrantsServiceListGrantsRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	require.Empty(t, grs.GetNextPageToken(), "grant fixture outgrew one page; oracle would silently truncate")
+	for _, g := range grs.GetList() {
+		ref := parityGrantRef(g)
+		_, dup := fr.grants[ref]
+		require.Falsef(t, dup, "grant ref %q listed twice; the oracle would silently keep one", ref)
+		fr.grants[ref] = normalizeGrantForParity(g)
+	}
+	return fr
+}
+
+// normalizeGrantForParity slims the embedded entitlement and principal to
+// the identity-only stubs pebble's V3GrantToV2 hydrates (entitlement id +
+// owning resource id; principal id + parent id), drops the GrantExpandable
+// annotation, and sorts the remaining annotations by (type_url, value).
+// GrantExpandable is dropped because the engines disagree on plain
+// ListGrants independently of the sanitizer: both store it in a side
+// column, but only pebble re-attaches it on read (sqlite exposes it via
+// ListWithAnnotationsPage). Its content is compared separately through
+// pendingExpansionBlobs. The grant's own id, sources, and every other
+// annotation payload are kept verbatim.
+func normalizeGrantForParity(g *v2.Grant) *v2.Grant {
+	out, ok := proto.Clone(g).(*v2.Grant)
+	if !ok {
+		panic("clone changed type")
+	}
+	if e := out.GetEntitlement(); e != nil {
+		out.SetEntitlement(v2.Entitlement_builder{
+			Id:       e.GetId(),
+			Resource: v2.Resource_builder{Id: e.GetResource().GetId()}.Build(),
+		}.Build())
+	}
+	if p := out.GetPrincipal(); p != nil {
+		out.SetPrincipal(v2.Resource_builder{Id: p.GetId(), ParentResourceId: p.GetParentResourceId()}.Build())
+	}
+	expandableURL := "type.googleapis.com/" + string((&v2.GrantExpandable{}).ProtoReflect().Descriptor().FullName())
+	anns := make([]*anypb.Any, 0, len(out.GetAnnotations()))
+	for _, a := range out.GetAnnotations() {
+		if a.GetTypeUrl() != expandableURL {
+			anns = append(anns, a)
+		}
+	}
+	sort.Slice(anns, func(i, j int) bool {
+		if anns[i].GetTypeUrl() != anns[j].GetTypeUrl() {
+			return anns[i].GetTypeUrl() < anns[j].GetTypeUrl()
+		}
+		return bytes.Compare(anns[i].GetValue(), anns[j].GetValue()) < 0
+	})
+	out.SetAnnotations(anns)
+	return out
+}
+
+// normalizeEntitlementForParity slims the two fields pebble's v3 schema
+// stores as identity-only refs: the embedded resource and the grantable_to
+// types are "hydrated as a stub (identity only)" on read (V3EntitlementToV2),
+// while sqlite returns the writer's full embedded copies. Both are derived
+// data — the resource's and resource types' own records are compared in full
+// separately — so slimming them costs no coverage.
+func normalizeEntitlementForParity(e *v2.Entitlement) *v2.Entitlement {
+	out, ok := proto.Clone(e).(*v2.Entitlement)
+	if !ok {
+		panic("clone changed type")
+	}
+	if r := out.GetResource(); r != nil {
+		out.SetResource(v2.Resource_builder{Id: r.GetId()}.Build())
+	}
+	if gs := out.GetGrantableTo(); len(gs) > 0 {
+		slim := make([]*v2.ResourceType, 0, len(gs))
+		for _, rt := range gs {
+			slim = append(slim, v2.ResourceType_builder{Id: rt.GetId()}.Build())
+		}
+		out.SetGrantableTo(slim)
+	}
+	return out
+}
+
+// requireRecordSetEqual asserts got holds exactly want's keys and that each
+// record is proto-equal, printing the diverging pair on failure.
+func requireRecordSetEqual[P proto.Message](t *testing.T, want, got map[string]P, arm, family string) {
+	t.Helper()
+	wantKeys := sortedKeys(want)
+	require.Equalf(t, wantKeys, sortedKeys(got), "%s %s id set", arm, family)
+	for _, id := range wantKeys {
+		require.Truef(t, proto.Equal(want[id], got[id]),
+			"%s %s %q diverged\nbase: %s\narm:  %s",
+			arm, family, id, prototext.Format(want[id]), prototext.Format(got[id]))
+	}
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// resourceParentChains maps each resource id to its parent resource id.
+func resourceParentChains(t *testing.T, ctx context.Context, store c1zstore.Store) map[string]string {
+	t.Helper()
+	resp, err := store.ListResources(ctx, v2.ResourcesServiceListResourcesRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	out := map[string]string{}
+	for _, r := range resp.GetList() {
+		out[r.GetId().GetResource()] = r.GetParentResourceId().GetResource()
+	}
+	return out
+}
+
+// entitlementOwnership maps each entitlement id to its owning resource id.
+func entitlementOwnership(t *testing.T, ctx context.Context, store c1zstore.Store) map[string]string {
+	t.Helper()
+	resp, err := store.ListEntitlements(ctx, v2.EntitlementsServiceListEntitlementsRequest_builder{PageSize: 1000}.Build())
+	require.NoError(t, err)
+	out := map[string]string{}
+	for _, e := range resp.GetList() {
+		out[parityEntitlementID(e.GetId())] = e.GetResource().GetId().GetResource()
+	}
+	return out
+}
+
+// grantRefs maps each grant id to its "<entitlementID>|<principalType>/<principalID>".
+func grantRefs(t *testing.T, ctx context.Context, store c1zstore.Store) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	pageToken := ""
+	for {
+		resp, err := store.ListGrants(ctx, v2.GrantsServiceListGrantsRequest_builder{PageSize: 1000, PageToken: pageToken}.Build())
+		require.NoError(t, err)
+		for _, g := range resp.GetList() {
+			ref := parityGrantRef(g)
+			out[ref] = ref
+		}
+		if resp.GetNextPageToken() == "" {
+			break
+		}
+		pageToken = resp.GetNextPageToken()
+	}
+	return out
+}
+
+func parityGrantRef(g *v2.Grant) string {
+	pid := g.GetPrincipal().GetId()
+	return parityEntitlementID(g.GetEntitlement().GetId()) + "|" + pid.GetResourceType() + "/" + pid.GetResource()
+}
+
+// parityEntitlementID: ids are raw pass-through on both engines now; the
+// helper survives as the identity function so call sites read the same.
+func parityEntitlementID(id string) string {
+	return id
+}
+
+func readAsset(t *testing.T, ctx context.Context, store c1zstore.Store, assetID string) (string, []byte) {
+	t.Helper()
+	ct, r, err := store.GetAsset(ctx, v2.AssetServiceGetAssetRequest_builder{Asset: v2.AssetRef_builder{Id: assetID}.Build()}.Build())
+	require.NoError(t, err)
+	b, err := io.ReadAll(r)
+	require.NoError(t, err)
+	if c, ok := r.(io.Closer); ok {
+		_ = c.Close()
+	}
+	return ct, b
+}
+
+func TestSanitizeSourceEngineParity(t *testing.T) {
+	ctx := context.Background()
+	secret := bytes32("cross-engine-parity")
+
+	engines := []struct {
+		name string
+		eng  c1zstore.Engine
+	}{
+		{"sqlite", c1zstore.EngineSQLite},
+		{"pebble", c1zstore.EnginePebble},
+	}
+
+	type arm struct {
+		name string
+		path string
+	}
+	var arms []arm
+
+	for _, srcE := range engines {
+		srcPath := filepath.Join(t.TempDir(), "src-"+srcE.name+".c1z")
+		func() {
+			src := newEngineStore(t, ctx, srcPath, srcE.eng)
+			buildParityFixture(t, ctx, src)
+			require.NoError(t, src.Close(ctx))
+		}()
+
+		dstPath := filepath.Join(t.TempDir(), "dst-"+srcE.name+".c1z")
+		src := openEngineStoreRO(t, ctx, srcPath)
+		dst := newEngineStore(t, ctx, dstPath, c1zstore.EnginePebble)
+		require.NoError(t, Sanitize(ctx, src, dst, Options{Secret: secret, TimestampAnchor: fixedAnchor}),
+			"sanitize %s source", srcE.name)
+		require.NoError(t, dst.Close(ctx))
+		require.NoError(t, src.Close(ctx))
+		arms = append(arms, arm{name: srcE.name, path: dstPath})
+	}
+	require.Len(t, arms, 2)
+
+	// Reference transform (secret-only) to compute expected transformed ids.
+	ref := newTestSanitizer(secret)
+	ref.knownResourceTypes[pfRTUser] = struct{}{}
+	ref.knownResourceTypes[pfRTRole] = struct{}{}
+	wantAssetID := SanitizeID(secret, pfAssetID)
+
+	// Collect every comparable projection per arm.
+	type snapshot struct {
+		rtCount, resCount, entCount, grantCount int
+		parents, entOwn, refs                   map[string]string
+		sources                                 map[string][]string
+		blobs                                   map[string]expandBlob
+		records                                 fullRecords
+		assetCT                                 string
+		assetBytes                              []byte
+	}
+	snaps := make([]snapshot, len(arms))
+	for i, a := range arms {
+		ro := openEngineStoreRO(t, ctx, a.path)
+		ct, ab := readAsset(t, ctx, ro, wantAssetID)
+		snaps[i] = snapshot{
+			rtCount:    resourceTypeCount(t, ctx, ro),
+			resCount:   resourceCount(t, ctx, ro),
+			entCount:   entitlementCount(t, ctx, ro),
+			grantCount: grantCount(t, ctx, ro),
+			parents:    resourceParentChains(t, ctx, ro),
+			entOwn:     entitlementOwnership(t, ctx, ro),
+			refs:       grantRefs(t, ctx, ro),
+			sources:    grantSourcesCanonical(t, ctx, ro),
+			blobs:      pendingExpansionBlobs(t, ctx, ro),
+			records:    fullRecordSets(t, ctx, ro),
+			assetCT:    ct,
+			assetBytes: ab,
+		}
+		require.NoError(t, ro.Close(ctx))
+	}
+
+	// (1) Cardinality parity: equal to the known source cardinality and equal
+	// across all four arms. The fixture has 2 resource types, 6 resources, 2
+	// entitlements, 5 grants.
+	for i, a := range arms {
+		require.Equalf(t, 2, snaps[i].rtCount, "%s resource-type count", a.name)
+		require.Equalf(t, 6, snaps[i].resCount, "%s resource count", a.name)
+		require.Equalf(t, 2, snaps[i].entCount, "%s entitlement count", a.name)
+		require.Equalf(t, 5, snaps[i].grantCount, "%s grant count", a.name)
+	}
+
+	// (2) Everything else: every arm identical to the first arm.
+	base := snaps[0]
+	for i := 1; i < len(snaps); i++ {
+		require.Equalf(t, base.parents, snaps[i].parents, "%s resource parent chains", arms[i].name)
+		require.Equalf(t, base.entOwn, snaps[i].entOwn, "%s entitlement ownership", arms[i].name)
+		require.Equalf(t, base.refs, snaps[i].refs, "%s grant entitlement/principal refs", arms[i].name)
+		require.Equalf(t, base.sources, snaps[i].sources, "%s expansion-source edges", arms[i].name)
+		require.Equalf(t, base.blobs, snaps[i].blobs, "%s GrantExpandable blobs + needs_expansion enumeration", arms[i].name)
+		requireRecordSetEqual(t, base.records.rts, snaps[i].records.rts, arms[i].name, "resource type")
+		requireRecordSetEqual(t, base.records.ress, snaps[i].records.ress, arms[i].name, "resource")
+		requireRecordSetEqual(t, base.records.ents, snaps[i].records.ents, arms[i].name, "entitlement")
+		requireRecordSetEqual(t, base.records.grants, snaps[i].records.grants, arms[i].name, "grant")
+	}
+
+	// (3) needs_expansion membership: the multi-expand and divergence-trigger
+	// grants are present on EVERY arm; the whitespace-only grant is absent on
+	// every arm. Keyed by transformed semantic grant ref.
+	wantMulti := ref.transformID(pfEntAdmin) + "|user/" + ref.transformID("alice")
+	wantDiverge := ref.transformID(pfEntAdmin) + "|user/" + ref.transformID("bob")
+	wantWhitespace := ref.transformID(pfEntReader) + "|user/" + ref.transformID("carol")
+	for i := range snaps {
+		_, hasMulti := snaps[i].blobs[wantMulti]
+		_, hasDiverge := snaps[i].blobs[wantDiverge]
+		_, hasWhitespace := snaps[i].blobs[wantWhitespace]
+		require.Truef(t, hasMulti, "%s: multi-expand grant must need expansion", arms[i].name)
+		require.Truef(t, hasDiverge, "%s: divergence-trigger grant must need expansion", arms[i].name)
+		require.Falsef(t, hasWhitespace, "%s: blank-entitlement-id grant must NOT need expansion", arms[i].name)
+	}
+
+	// (4) Multiset semantics for resource_type_ids: the multi-expand blob keeps
+	// the duplicated (HMAC'd) group token at multiplicity 2, plus the preserved
+	// "user" token -> 3 entries total.
+	multiBlob := base.blobs[wantMulti]
+	require.Len(t, multiBlob.rts, 3, "resource_type_ids multiset must preserve the duplicate group token")
+	require.Contains(t, multiBlob.rts, pfRTUser, "declared resource-type token preserved verbatim")
+	require.NotContains(t, multiBlob.rts, pfRTGroup, "undeclared resource-type token must be HMAC'd")
+
+	// (5) Asset: identity STRIPPED (placeholder, not source bytes) and identical
+	// across engines. Byte survival would be an identity leak.
+	wantPlaceholder := placeholderForContentType("image/png")
+	for i, a := range arms {
+		require.Equalf(t, "image/png", snaps[i].assetCT, "%s asset content type", a.name)
+		require.Equalf(t, wantPlaceholder, snaps[i].assetBytes, "%s asset payload must be the content-type placeholder", a.name)
+		require.NotEqualf(t, pfSourceIconBytes, snaps[i].assetBytes, "%s asset payload must NOT be the source bytes (identity leak)", a.name)
+	}
+}

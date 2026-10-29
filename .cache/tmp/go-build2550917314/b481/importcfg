@@ -1,0 +1,5 @@
+# import config
+packagefile github.com/go-logr/logr=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b479/_pkg_.a
+packagefile github.com/go-logr/logr/funcr=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b482/_pkg_.a
+packagefile log=/data/squire/cache/go/plaid-cache/blob/output/62/62e749655b6943db37743dbc5b8e88980455f3f4664a58db4599fd8aaa935c59
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a

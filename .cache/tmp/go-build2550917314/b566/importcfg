@@ -1,0 +1,5 @@
+# import config
+packagefile crypto/rand=/data/squire/cache/go/plaid-cache/blob/output/b7/b753069d9b2a274e3135b4c6fb9cd01786677f8154e9659ecf7761df92fd9332
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a
+packagefile path/filepath=/data/squire/cache/go/plaid-cache/blob/output/c4/c4c8e6de01bdfb10b71f64414c88925ab947a15da9a1e8bf7264e406959ea4de

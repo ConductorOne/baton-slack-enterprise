@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package c1.connector.v2;
+
+option go_package = "github.com/conductorone/baton-sdk/pb/c1/connector/v2";
+
+message ExternalTicketSettings {
+  bool enabled = 1;
+}
+
+message ExternalTicketRef {
+  string id = 1;
+  string external_ticket_provisioner_config_id = 2;
+}

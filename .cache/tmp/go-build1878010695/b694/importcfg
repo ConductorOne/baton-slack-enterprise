@@ -1,0 +1,19 @@
+# import config
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile encoding/binary=/data/squire/cache/go/plaid-cache/blob/output/0a/0a2fe4470aad98e3e14586c1c99427010c273bcccacadf0645a06fb1ecb32c7f
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/cockroachdb/errors=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b580/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/base=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b647/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/binfmt=/data/squire/cache/go/plaid-cache/blob/output/b4/b4fe29d84347ba51a523e5917994f91cbe9215e226105e8bb2d552df895881c3
+packagefile github.com/cockroachdb/pebble/v2/internal/crc=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b695/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/invariants=/data/squire/cache/go/plaid-cache/blob/output/10/101330f93f3270c93c055dd6e94632866c493b4e4a3f8edb14a5bb29e716e231
+packagefile github.com/cockroachdb/pebble/v2/internal/treeprinter=/data/squire/cache/go/plaid-cache/blob/output/5f/5f75bc8f9387479bb125ded8734ae7c234a469b79bb060bf77cfd4ed99144aae
+packagefile github.com/cockroachdb/pebble/v2/objstorage=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b677/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/objstorage/objstorageprovider=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b696/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/sstable/block=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b703/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/sstable/block/blockkind=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b698/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/sstable/colblk=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b714/_pkg_.a
+packagefile github.com/cockroachdb/redact=/data/squire/cache/go/plaid-cache/blob/output/cc/cc26f10e39482c2ae572480655b4897e2d04861addf2126e2a86edf8befae1bf
+packagefile slices=/data/squire/cache/go/plaid-cache/blob/output/47/4785913ebabf44c318a2a46c54a2ff2aa0221066947d3c37c756c87472364351
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f

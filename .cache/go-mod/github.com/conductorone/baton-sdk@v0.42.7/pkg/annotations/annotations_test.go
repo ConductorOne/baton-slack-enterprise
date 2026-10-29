@@ -1,0 +1,131 @@
+package annotations
+
+import (
+	"testing"
+
+	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/stretchr/testify/require"
+)
+
+func TestAnnotations_New(t *testing.T) {
+	annos := New(&v2.GroupTrait{}, &v2.RoleTrait{})
+	require.Len(t, annos, 2)
+	for i, a := range annos {
+		switch i {
+		case 0:
+			require.True(t, a.MessageIs(&v2.GroupTrait{}))
+		case 1:
+			require.True(t, a.MessageIs(&v2.RoleTrait{}))
+		}
+	}
+}
+
+func TestAnnotations_Append(t *testing.T) {
+	var annos Annotations
+
+	annos.Append(&v2.GroupTrait{}, &v2.RoleTrait{})
+	require.Len(t, annos, 2)
+	for i, a := range annos {
+		switch i {
+		case 0:
+			require.True(t, a.MessageIs(&v2.GroupTrait{}))
+		case 1:
+			require.True(t, a.MessageIs(&v2.RoleTrait{}))
+		}
+	}
+}
+
+func TestAnnotations_Contains(t *testing.T) {
+	var annos Annotations
+
+	annos.Append(&v2.GroupTrait{}, &v2.RoleTrait{})
+	require.True(t, annos.Contains(&v2.GroupTrait{}))
+	require.True(t, annos.Contains(&v2.RoleTrait{}))
+	require.False(t, annos.Contains(&v2.AppTrait{}))
+}
+
+func TestAnnotations_Pick(t *testing.T) {
+	var annos Annotations
+
+	annos.Append(v2.GroupTrait_builder{GroupSourceType: "native"}.Build())
+
+	trait := &v2.GroupTrait{}
+	require.Empty(t, trait.GetGroupSourceType())
+	ok, err := annos.Pick(trait)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "native", trait.GetGroupSourceType())
+
+	roleTrait := &v2.RoleTrait{}
+	ok, err = annos.Pick(roleTrait)
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
+func TestAnnotations_Update(t *testing.T) {
+	var annos Annotations
+
+	require.Len(t, annos, 0)
+	annos.Update(&v2.GroupTrait{})
+	require.Len(t, annos, 1)
+	annos.Append(&v2.RoleTrait{})
+	require.Len(t, annos, 2)
+	annos.Update(v2.GroupTrait_builder{GroupSourceType: "native"}.Build())
+	require.Len(t, annos, 2)
+	annos.Update(&v2.UserTrait{})
+	require.Len(t, annos, 3)
+
+	gt := &v2.GroupTrait{}
+	ok, err := annos.Pick(gt)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "native", gt.GetGroupSourceType())
+}
+
+func TestAnnotations_WithRateLimiting(t *testing.T) {
+	var annos Annotations
+
+	require.Len(t, annos, 0)
+	annos.WithRateLimiting(&v2.RateLimitDescription{})
+	require.Len(t, annos, 1)
+
+	rld := &v2.RateLimitDescription{}
+	ok, err := annos.Pick(rld)
+	require.NoError(t, err)
+	require.True(t, ok)
+}
+
+func TestAnnotations_WithRateLimitWaitReport(t *testing.T) {
+	var annos Annotations
+
+	// Non-positive waits are no-ops.
+	annos.WithRateLimitWaitReport(0)
+	annos.WithRateLimitWaitReport(-5)
+	require.Len(t, annos, 0)
+
+	annos.WithRateLimitWaitReport(1500)
+	require.Len(t, annos, 1)
+
+	report := &v2.RateLimitWaitReport{}
+	ok, err := annos.Pick(report)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.EqualValues(t, 1500, report.GetWaitMs())
+
+	// Update replaces rather than appends: a second report overwrites.
+	annos.WithRateLimitWaitReport(2000)
+	require.Len(t, annos, 1)
+	ok, err = annos.Pick(report)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.EqualValues(t, 2000, report.GetWaitMs())
+}
+
+func TestAnnotations_ContainAny(t *testing.T) {
+	var annos Annotations
+
+	annos.Append(&v2.GroupTrait{}, &v2.RoleTrait{})
+	require.True(t, annos.ContainsAny(&v2.AppTrait{}, &v2.GroupTrait{}))
+	require.True(t, annos.ContainsAny(&v2.RoleTrait{}))
+	require.False(t, annos.ContainsAny(&v2.AppTrait{}))
+}

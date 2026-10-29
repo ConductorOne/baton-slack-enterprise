@@ -1,0 +1,697 @@
+package connectorbuilder
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"sort"
+	"time"
+
+	"github.com/go-jose/go-jose/v4"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.opentelemetry.io/otel"
+	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/actions"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/crypto"
+	"github.com/conductorone/baton-sdk/pkg/metrics"
+	"github.com/conductorone/baton-sdk/pkg/retry"
+	"github.com/conductorone/baton-sdk/pkg/sdk"
+	"github.com/conductorone/baton-sdk/pkg/session"
+	"github.com/conductorone/baton-sdk/pkg/types"
+	"github.com/conductorone/baton-sdk/pkg/types/sessions"
+	"github.com/conductorone/baton-sdk/pkg/types/tasks"
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/conductorone/baton-sdk/pkg/uotel"
+)
+
+var tracer = otel.Tracer("baton-sdk/pkg.connectorbuilder")
+
+// ConnectorBuilder is the foundational interface for creating Baton connectors.
+//
+// This interface defines the core capabilities required by all connectors, including
+// metadata, validation, and registering resource syncers. Additional functionality
+// can be added by implementing extension interfaces such as:
+// - RegisterActionManager: For custom action support
+// - EventProvider: For event stream support
+// - TicketManager: For ticket management integration.
+
+type MetadataProvider interface {
+	Metadata(ctx context.Context) (*v2.ConnectorMetadata, error)
+}
+
+type ValidateProvider interface {
+	Validate(ctx context.Context) (annotations.Annotations, error)
+}
+
+type ConnectorBuilder interface {
+	MetadataProvider
+	ValidateProvider
+	ResourceSyncers(ctx context.Context) []ResourceSyncer
+}
+
+type ConnectorBuilderV2 interface {
+	MetadataProvider
+	ValidateProvider
+	ResourceSyncers(ctx context.Context) []ResourceSyncerV2
+}
+
+type closeHook func(context.Context) error
+
+type closeWithContext interface {
+	Close(context.Context) error
+}
+
+type closeWithoutContext interface {
+	Close() error
+}
+
+type builder struct {
+	ticketingEnabled        bool
+	m                       *metrics.M
+	nowFunc                 func() time.Time
+	clientSecret            *jose.JSONWebKey
+	sessionStore            sessions.SessionStore
+	metadataProvider        MetadataProvider
+	validateProvider        ValidateProvider
+	ticketManager           TicketManagerLimited
+	resourceSyncers         map[string]ResourceSyncerV2
+	resourceProvisioners    map[string]ResourceProvisionerV2Limited
+	resourceManagers        map[string]ResourceManagerV2Limited
+	resourceDeleters        map[string]ResourceDeleterV2Limited
+	resourceTargetedSyncers map[string]ResourceTargetedSyncerLimited
+	credentialManagers      map[string]CredentialManagerLimited
+	credentialIssuers       map[string]CredentialIssuerLimited
+	eventFeeds              map[string]EventFeed
+	accountManagers         map[string]AccountManagerLimited
+	actionManager           ActionManager // Unified action manager for all actions
+	closeHook               closeHook
+}
+
+// NewConnector creates a new ConnectorServer for a new resource.
+func NewConnector(ctx context.Context, in interface{}, opts ...Opt) (types.ConnectorServer, error) {
+	if in == nil {
+		return nil, status.Error(codes.InvalidArgument, "input cannot be nil")
+	}
+
+	switch t := in.(type) {
+	case types.ConnectorServer:
+		// its likely nothing uses this code path anymore
+		return t, nil
+	case ConnectorBuilder, ConnectorBuilderV2:
+	default:
+		return nil, status.Error(codes.InvalidArgument, "input is not a ConnectorServer, ConnectorBuilder, or ConnectorBuilderV2")
+	}
+
+	clientSecretValue := ctx.Value(crypto.ContextClientSecretKey)
+	clientSecretJWK, _ := clientSecretValue.(*jose.JSONWebKey)
+
+	// Create the action manager (concrete type for registration, stored as interface for dispatch)
+	actionMgr := actions.NewActionManager(ctx)
+
+	b := &builder{
+		metadataProvider:        nil,
+		validateProvider:        nil,
+		ticketManager:           nil,
+		nowFunc:                 time.Now,
+		clientSecret:            clientSecretJWK,
+		resourceSyncers:         make(map[string]ResourceSyncerV2),
+		resourceProvisioners:    make(map[string]ResourceProvisionerV2Limited),
+		resourceManagers:        make(map[string]ResourceManagerV2Limited),
+		resourceDeleters:        make(map[string]ResourceDeleterV2Limited),
+		resourceTargetedSyncers: make(map[string]ResourceTargetedSyncerLimited),
+		credentialManagers:      make(map[string]CredentialManagerLimited),
+		credentialIssuers:       make(map[string]CredentialIssuerLimited),
+		eventFeeds:              make(map[string]EventFeed),
+		accountManagers:         make(map[string]AccountManagerLimited),
+		actionManager:           actionMgr,
+		closeHook:               closeHookFor(in),
+	}
+
+	// WithTicketingEnabled checks for the ticketManager
+	if err := b.addTicketManager(ctx, in); err != nil {
+		return nil, err
+	}
+
+	err := b.options(opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.m == nil {
+		b.m = metrics.New(metrics.NewNoOpHandler(ctx))
+	}
+
+	if err := b.addConnectorBuilderProviders(ctx, in); err != nil {
+		return nil, err
+	}
+
+	if err := b.addEventFeed(ctx, in); err != nil {
+		return nil, err
+	}
+
+	// Handle deprecated action manager interfaces (pass concrete type for registration)
+	if err := b.addActionManager(ctx, in, actionMgr); err != nil {
+		return nil, err
+	}
+
+	// Handle the new GlobalActionProvider interface
+	if globalActionProvider, ok := in.(GlobalActionProvider); ok {
+		if err := globalActionProvider.GlobalActions(ctx, actionMgr); err != nil {
+			return nil, fmt.Errorf("error registering global actions: %w", err)
+		}
+	}
+
+	addResourceType := func(ctx context.Context, rType string, rs interface{}) error {
+		if err := b.addResourceSyncers(ctx, rType, rs); err != nil {
+			return err
+		}
+
+		if err := b.addProvisioner(ctx, rType, rs); err != nil {
+			return err
+		}
+
+		if err := b.addTargetedSyncer(ctx, rType, rs); err != nil {
+			return err
+		}
+
+		if err := b.addResourceManager(ctx, rType, rs); err != nil {
+			return err
+		}
+
+		if err := b.addAccountManager(ctx, rType, rs); err != nil {
+			return err
+		}
+
+		if err := b.addCredentialManager(ctx, rType, rs); err != nil {
+			return err
+		}
+
+		if err := b.addCredentialIssuer(ctx, rType, rs); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if cb, ok := in.(ConnectorBuilder); ok {
+		for _, rb := range cb.ResourceSyncers(ctx) {
+			rType := rb.ResourceType(ctx)
+			if err := validateTypeScopedRegistration(rType, rb); err != nil {
+				return nil, err
+			}
+			if err := addResourceType(ctx, rType.GetId(), rb); err != nil {
+				return nil, err
+			}
+		}
+		return b, nil
+	}
+
+	if cb2, ok := in.(ConnectorBuilderV2); ok {
+		for _, rb := range cb2.ResourceSyncers(ctx) {
+			rType := rb.ResourceType(ctx)
+			if err := validateTypeScopedRegistration(rType, rb); err != nil {
+				return nil, err
+			}
+			if err := addResourceType(ctx, rType.GetId(), rb); err != nil {
+				return nil, err
+			}
+		}
+		return b, nil
+	}
+
+	return nil, status.Error(codes.InvalidArgument, "input is not a ConnectorBuilder or a ConnectorBuilderV2")
+}
+
+type Opt func(b *builder) error
+
+func WithTicketingEnabled() Opt {
+	return func(b *builder) error {
+		if b.ticketManager == nil {
+			return errors.New("external ticketing not supported")
+		}
+		b.ticketingEnabled = true
+		return nil
+	}
+}
+
+func WithMetricsHandler(h metrics.Handler) Opt {
+	return func(b *builder) error {
+		b.m = metrics.New(h)
+		return nil
+	}
+}
+
+func WithSessionStore(ss sessions.SessionStore) Opt {
+	return func(b *builder) error {
+		b.sessionStore = ss
+		return nil
+	}
+}
+
+func (b *builder) options(opts ...Opt) error {
+	for _, opt := range opts {
+		if err := opt(b); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *builder) addConnectorBuilderProviders(_ context.Context, in interface{}) error {
+	if mp, ok := in.(MetadataProvider); ok {
+		b.metadataProvider = mp
+	} else {
+		return status.Error(codes.InvalidArgument, "error: metadata provider not implemented")
+	}
+
+	if vp, ok := in.(ValidateProvider); ok {
+		b.validateProvider = vp
+	} else {
+		return status.Error(codes.InvalidArgument, "error: validate provider not implemented")
+	}
+
+	return nil
+}
+
+func closeHookFor(in any) closeHook {
+	if in == nil {
+		return nil
+	}
+
+	if closer, ok := in.(closeWithContext); ok {
+		return closer.Close
+	}
+	if closer, ok := in.(closeWithoutContext); ok {
+		return func(context.Context) error {
+			return closer.Close()
+		}
+	}
+	return nil
+}
+
+func (b *builder) Close(ctx context.Context) error {
+	if b.closeHook == nil {
+		return nil
+	}
+	return b.closeHook(ctx)
+}
+
+// GetMetadata gets all metadata for a connector.
+func (b *builder) GetMetadata(ctx context.Context, request *v2.ConnectorServiceGetMetadataRequest) (*v2.ConnectorServiceGetMetadataResponse, error) {
+	ctx, span := tracer.Start(ctx, "builder.GetMetadata")
+	var err error
+	defer func() { uotel.EndSpanWithError(span, err) }()
+
+	start := b.nowFunc()
+	tt := tasks.GetMetadataType
+	md, err := b.metadataProvider.Metadata(ctx)
+	if err != nil {
+		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start), err)
+		return nil, err
+	}
+
+	md.Capabilities, err = b.GetCapabilities(ctx)
+	if err != nil {
+		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start), err)
+		return nil, err
+	}
+
+	annos := annotations.Annotations(md.GetAnnotations())
+	if b.ticketManager != nil {
+		annos.Append(v2.ExternalTicketSettings_builder{Enabled: b.ticketingEnabled}.Build())
+	}
+	md.SetAnnotations(annos)
+
+	b.m.RecordTaskSuccess(ctx, tt, b.nowFunc().Sub(start))
+	return v2.ConnectorServiceGetMetadataResponse_builder{Metadata: md}.Build(), nil
+}
+
+// Validate validates the connector.
+func (b *builder) Validate(ctx context.Context, request *v2.ConnectorServiceValidateRequest) (*v2.ConnectorServiceValidateResponse, error) {
+	ctx, span := tracer.Start(ctx, "builder.Validate")
+	var err error
+	defer func() { uotel.EndSpanWithError(span, err) }()
+
+	retryer := retry.NewRetryer(ctx, retry.RetryConfig{
+		MaxAttempts:  5,
+		InitialDelay: 1 * time.Second,
+		MaxDelay:     0,
+	})
+
+	for {
+		annos, validateErr := b.validateProvider.Validate(ctx)
+		if validateErr == nil {
+			return v2.ConnectorServiceValidateResponse_builder{
+				Annotations: annos,
+				SdkVersion:  sdk.Version,
+			}.Build(), nil
+		}
+
+		if retryer.ShouldWaitAndRetry(ctx, validateErr) {
+			continue
+		}
+
+		err = fmt.Errorf("validate failed: %w", validateErr)
+		return nil, err
+	}
+}
+
+func (b *builder) Cleanup(ctx context.Context, request *v2.ConnectorServiceCleanupRequest) (*v2.ConnectorServiceCleanupResponse, error) {
+	l := ctxzap.Extract(ctx)
+	ctx, sessionUsage := session.WithUsageCollector(ctx)
+	if b.sessionStore != nil {
+		// Limit c1z size before we upload, because the uploads time out...
+		//  TODO(kans): we could hold onto the session store if we are in debug mode.
+		//  TODO(kans): we should probably not do this for lambda connectors.
+		err := b.sessionStore.Clear(ctx, sessions.WithSyncID(request.GetActiveSyncId()))
+		if err != nil {
+			l.Warn("error clearing session store", zap.Error(err))
+		}
+	}
+
+	// Clear all http caches at the end of a sync. This must be run in the child process, which is why it's in this function and not in syncer.go
+	err := uhttp.ClearCaches(ctx)
+	if err != nil {
+		l.Warn("error clearing http caches", zap.Error(err))
+	}
+	resp := &v2.ConnectorServiceCleanupResponse{}
+	resp.SetAnnotations(appendSessionUsage(resp.GetAnnotations(), sessionUsage))
+	return resp, err
+}
+
+// GetCapabilities gets all capabilities for a connector.
+func (b *builder) GetCapabilities(ctx context.Context) (*v2.ConnectorCapabilities, error) {
+	connectorCaps := make(map[v2.Capability]struct{})
+	resourceTypeCapabilities := []*v2.ResourceTypeCapability{}
+
+	for resourceTypeID, rb := range b.resourceSyncers {
+		connectorCaps[v2.Capability_CAPABILITY_SYNC] = struct{}{}
+		caps := []v2.Capability{v2.Capability_CAPABILITY_SYNC}
+
+		if _, exists := b.resourceTargetedSyncers[resourceTypeID]; exists {
+			caps = append(caps, v2.Capability_CAPABILITY_TARGETED_SYNC)
+			connectorCaps[v2.Capability_CAPABILITY_SERVICE_MODE_TARGETED_SYNC] = struct{}{}
+		}
+
+		if _, exists := b.resourceProvisioners[resourceTypeID]; exists {
+			caps = append(caps, v2.Capability_CAPABILITY_PROVISION)
+		}
+
+		if _, exists := b.accountManagers[resourceTypeID]; exists {
+			caps = append(caps, v2.Capability_CAPABILITY_ACCOUNT_PROVISIONING)
+		}
+
+		if _, exists := b.resourceManagers[resourceTypeID]; exists {
+			caps = append(caps, v2.Capability_CAPABILITY_RESOURCE_DELETE, v2.Capability_CAPABILITY_RESOURCE_CREATE)
+		} else if _, exists := b.resourceDeleters[resourceTypeID]; exists {
+			caps = append(caps, v2.Capability_CAPABILITY_RESOURCE_DELETE)
+		}
+
+		if _, exists := b.credentialManagers[resourceTypeID]; exists {
+			caps = append(caps, v2.Capability_CAPABILITY_CREDENTIAL_ROTATION)
+		}
+
+		if _, exists := b.credentialIssuers[resourceTypeID]; exists {
+			caps = append(caps, v2.Capability_CAPABILITY_CREDENTIAL_ISSUE, v2.Capability_CAPABILITY_CREDENTIAL_ENCRYPTION_JWE_XWING_V1)
+		}
+
+		// Extend the capabilities with the resource type specificcapabilities
+		for _, cap := range caps {
+			connectorCaps[cap] = struct{}{}
+		}
+
+		r := rb.ResourceType(ctx)
+		annos := annotations.Annotations(r.Annotations)
+		p := &v2.CapabilityPermissions{}
+		_, err := annos.Pick(p)
+		if err != nil {
+			return nil, err
+		}
+		var issueDetails *v2.CredentialDetailsCredentialIssue
+		if issuer, exists := b.credentialIssuers[resourceTypeID]; exists {
+			issueDetails, _, err = issuer.IssueCapabilityDetails(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("error: getting credential issuance details for %s: %w", resourceTypeID, err)
+			}
+			if err := validateCredentialIssueCapabilityDetails(issueDetails); err != nil {
+				return nil, fmt.Errorf("error: validating credential issuance details for %s: %w", resourceTypeID, err)
+			}
+			for _, descriptor := range issueDetails.GetOptions() {
+				secretType := descriptor.GetSecretResourceTypeId()
+				_, managerDeletes := b.resourceManagers[secretType]
+				_, deleterExists := b.resourceDeleters[secretType]
+				if !managerDeletes && !deleterExists {
+					return nil, fmt.Errorf("credential issue option %s returns secret resource type %q without ResourceDeleterV2", descriptor.GetOption(), secretType)
+				}
+			}
+		}
+
+		resourceTypeCapabilities = append(resourceTypeCapabilities, v2.ResourceTypeCapability_builder{
+			ResourceType:             rb.ResourceType(ctx),
+			Capabilities:             caps,
+			Permissions:              p,
+			OptInRequired:            annos.Contains(&v2.OptInRequired{}),
+			SkipSyncAnomalyDetection: annos.Contains(&v2.SkipSyncAnomalyDetection{}),
+			CredentialIssue:          issueDetails,
+			Deprecated:               annos.Contains(&v2.Deprecated{}),
+		}.Build())
+	}
+
+	// Check for account provisioning capability (global, not per resource type)
+	if len(b.accountManagers) > 0 {
+		connectorCaps[v2.Capability_CAPABILITY_ACCOUNT_PROVISIONING] = struct{}{}
+	}
+	sort.Slice(resourceTypeCapabilities, func(i, j int) bool {
+		return resourceTypeCapabilities[i].GetResourceType().GetId() < resourceTypeCapabilities[j].GetResourceType().GetId()
+	})
+
+	if len(b.eventFeeds) > 0 {
+		connectorCaps[v2.Capability_CAPABILITY_EVENT_FEED_V2] = struct{}{}
+	}
+
+	if b.ticketManager != nil {
+		connectorCaps[v2.Capability_CAPABILITY_TICKETING] = struct{}{}
+	}
+
+	if b.actionManager.HasActions() {
+		connectorCaps[v2.Capability_CAPABILITY_ACTIONS] = struct{}{}
+	}
+
+	var caps []v2.Capability
+	for c := range connectorCaps {
+		caps = append(caps, c)
+	}
+	slices.Sort(caps)
+
+	credDetails, err := getCredentialDetails(ctx, b)
+	if err != nil {
+		return nil, err
+	}
+
+	return v2.ConnectorCapabilities_builder{
+		ResourceTypeCapabilities: resourceTypeCapabilities,
+		ConnectorCapabilities:    caps,
+		CredentialDetails:        credDetails,
+	}.Build(), nil
+}
+
+func validateCapabilityDetails(_ context.Context, credDetails *v2.CredentialDetails) error {
+	if credDetails.HasCapabilityAccountProvisioning() {
+		// Ensure that the preferred option is included and is part of the supported options
+		if credDetails.GetCapabilityAccountProvisioning().GetPreferredCredentialOption() == v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_UNSPECIFIED {
+			return status.Error(codes.InvalidArgument, "error: preferred credential creation option is not set")
+		}
+		if !slices.Contains(credDetails.GetCapabilityAccountProvisioning().GetSupportedCredentialOptions(), credDetails.GetCapabilityAccountProvisioning().GetPreferredCredentialOption()) {
+			return status.Error(codes.InvalidArgument, "error: preferred credential creation option is not part of the supported options")
+		}
+	}
+
+	if credDetails.HasCapabilityCredentialRotation() {
+		// Ensure that the preferred option is included and is part of the supported options
+		if credDetails.GetCapabilityCredentialRotation().GetPreferredCredentialOption() == v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_UNSPECIFIED {
+			return status.Error(codes.InvalidArgument, "error: preferred credential rotation option is not set")
+		}
+		if !slices.Contains(credDetails.GetCapabilityCredentialRotation().GetSupportedCredentialOptions(), credDetails.GetCapabilityCredentialRotation().GetPreferredCredentialOption()) {
+			return status.Error(codes.InvalidArgument, "error: preferred credential rotation option is not part of the supported options")
+		}
+	}
+
+	return nil
+}
+
+func validateCredentialIssueCapabilityDetails(issue *v2.CredentialDetailsCredentialIssue) error {
+	if issue == nil || issue.GetPreferredOption() == v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_UNSPECIFIED {
+		return status.Error(codes.InvalidArgument, "preferred credential issue option is not set")
+	}
+	seen := make(map[credentialIssueDescriptorKey]struct{}, len(issue.GetOptions()))
+	perOption := make(map[v2.CapabilityDetailCredentialOption]int, len(issue.GetOptions()))
+	preferredPerOption := make(map[v2.CapabilityDetailCredentialOption]int, len(issue.GetOptions()))
+	for _, descriptor := range issue.GetOptions() {
+		if descriptor == nil || descriptor.GetOption() == v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_UNSPECIFIED {
+			return status.Error(codes.InvalidArgument, "credential issue option descriptor is invalid")
+		}
+		if descriptor.GetResourceMode() == v2.CredentialResourceMode_CREDENTIAL_RESOURCE_MODE_UNSPECIFIED {
+			return status.Error(codes.InvalidArgument, "credential issue resource mode is not set")
+		}
+		if descriptor.GetSecretResourceTypeId() == "" {
+			return status.Error(codes.InvalidArgument, "credential issue secret resource type is not set")
+		}
+		if len(descriptor.GetSecretResourceTypeId()) > maxCredentialIssueSecretResourceTypeIDBytes {
+			return status.Errorf(codes.InvalidArgument, "credential issue secret resource type must be at most %d bytes",
+				maxCredentialIssueSecretResourceTypeIDBytes)
+		}
+		if err := validateCredentialIssueDescriptorShape(descriptor); err != nil {
+			return status.Errorf(codes.InvalidArgument, "invalid credential issue option %s: %v", descriptor.GetOption(), err)
+		}
+		for _, profile := range descriptor.GetKeyProfiles() {
+			if err := validateKeyGenerationProfile(profile); err != nil {
+				return status.Errorf(codes.InvalidArgument, "invalid credential issue key profile: %v", err)
+			}
+		}
+		if err := validateIssuanceExpiryCapability(descriptor.GetExpiry()); err != nil {
+			return status.Errorf(codes.InvalidArgument, "invalid credential issue expiry capability: %v", err)
+		}
+		key := credentialIssueDescriptorKey{
+			option:               descriptor.GetOption(),
+			secretResourceTypeID: descriptor.GetSecretResourceTypeId(),
+		}
+		if _, exists := seen[key]; exists {
+			return status.Errorf(codes.InvalidArgument, "duplicate credential issue option %s for secret resource type %q",
+				descriptor.GetOption(), descriptor.GetSecretResourceTypeId())
+		}
+		seen[key] = struct{}{}
+		perOption[descriptor.GetOption()]++
+		if descriptor.GetPreferred() {
+			preferredPerOption[descriptor.GetOption()]++
+		}
+	}
+	if err := validateCredentialIssuePreference(issue.GetOptions(), perOption, preferredPerOption); err != nil {
+		return err
+	}
+	if perOption[issue.GetPreferredOption()] == 0 {
+		return status.Error(codes.InvalidArgument, "preferred credential issue option is not part of the supported options")
+	}
+	return nil
+}
+
+// validateCredentialIssuePreference enforces that every option resolves to one
+// default descriptor. It walks the descriptors in declaration order so the
+// error names the first offending option rather than a random one.
+func validateCredentialIssuePreference(
+	descriptors []*v2.CredentialIssueOptionDescriptor,
+	perOption map[v2.CapabilityDetailCredentialOption]int,
+	preferredPerOption map[v2.CapabilityDetailCredentialOption]int,
+) error {
+	reported := make(map[v2.CapabilityDetailCredentialOption]struct{}, len(perOption))
+	for _, descriptor := range descriptors {
+		option := descriptor.GetOption()
+		if _, done := reported[option]; done {
+			continue
+		}
+		reported[option] = struct{}{}
+		if preferredPerOption[option] > 1 {
+			return status.Errorf(codes.InvalidArgument,
+				"credential issue option %s has %d preferred descriptors, expected at most one",
+				option, preferredPerOption[option])
+		}
+		if perOption[option] > 1 && preferredPerOption[option] == 0 {
+			return status.Errorf(codes.InvalidArgument,
+				"credential issue option %s has %d descriptors and none is preferred",
+				option, perOption[option])
+		}
+	}
+	return nil
+}
+
+func validateCredentialIssueDescriptorShape(descriptor *v2.CredentialIssueOptionDescriptor) error {
+	hasScopes := len(descriptor.GetScopes()) != 0 || descriptor.GetCustomScopesAllowed()
+	hasAudiences := len(descriptor.GetAudiences()) != 0 || descriptor.GetCustomAudiencesAllowed()
+	hasKeyProfiles := len(descriptor.GetKeyProfiles()) != 0
+	switch descriptor.GetOption() {
+	case v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_API_KEY:
+		if hasKeyProfiles || hasAudiences {
+			return fmt.Errorf("API key options may only advertise scopes and expiry")
+		}
+	case v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_KEYPAIR:
+		if !hasKeyProfiles {
+			return fmt.Errorf("keypair options must advertise at least one key profile")
+		}
+		if hasScopes || hasAudiences {
+			return fmt.Errorf("keypair options may only advertise key profiles and expiry")
+		}
+	case v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_TOKEN:
+		if hasKeyProfiles {
+			return fmt.Errorf("token options may only advertise scopes, audiences, and expiry")
+		}
+	case v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_CLIENT_SECRET:
+		if hasKeyProfiles || hasScopes || hasAudiences {
+			return fmt.Errorf("client secret options may only advertise expiry")
+		}
+	default:
+		return fmt.Errorf("unsupported issuance option")
+	}
+	return nil
+}
+
+func validateIssuanceExpiryCapability(capability *v2.IssuanceExpiryCapability) error {
+	if capability == nil {
+		return nil
+	}
+	var minDuration, maxDuration time.Duration
+	if capability.GetMin() != nil {
+		if err := capability.GetMin().CheckValid(); err != nil || capability.GetMin().AsDuration() <= 0 {
+			return fmt.Errorf("minimum must be a valid positive duration")
+		}
+		minDuration = capability.GetMin().AsDuration()
+	}
+	if capability.GetMax() != nil {
+		if err := capability.GetMax().CheckValid(); err != nil || capability.GetMax().AsDuration() <= 0 {
+			return fmt.Errorf("maximum must be a valid positive duration")
+		}
+		maxDuration = capability.GetMax().AsDuration()
+	}
+	if minDuration != 0 && maxDuration != 0 && minDuration > maxDuration {
+		return fmt.Errorf("minimum must not exceed maximum")
+	}
+	return nil
+}
+
+func getCredentialDetails(ctx context.Context, b *builder) (*v2.CredentialDetails, error) {
+	l := ctxzap.Extract(ctx)
+	rv := &v2.CredentialDetails{}
+
+	// Check for account provisioning capability details
+	for _, am := range b.accountManagers {
+		accountProvisioningCapabilityDetails, _, err := am.CreateAccountCapabilityDetails(ctx)
+		if err != nil {
+			l.Error("error: getting account provisioning details", zap.Error(err))
+			return nil, fmt.Errorf("error: getting account provisioning details: %w", err)
+		}
+		rv.SetCapabilityAccountProvisioning(accountProvisioningCapabilityDetails)
+		break // Only need one account manager's details
+	}
+
+	// Check for credential rotation capability details
+	for _, cm := range b.credentialManagers {
+		credentialRotationCapabilityDetails, _, err := cm.RotateCapabilityDetails(ctx)
+		if err != nil {
+			l.Error("error: getting credential management details", zap.Error(err))
+			return nil, fmt.Errorf("error: getting credential management details: %w", err)
+		}
+		rv.SetCapabilityCredentialRotation(credentialRotationCapabilityDetails)
+		break // Only need one credential manager's details
+	}
+
+	err := validateCapabilityDetails(ctx, rv)
+	if err != nil {
+		return nil, fmt.Errorf("error: validating capability details: %w", err)
+	}
+	return rv, nil
+}

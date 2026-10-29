@@ -1,0 +1,36 @@
+name: Update hard-coded SDK version
+on:
+  release:
+    types: [published, unpublished, created, edited, deleted, released]
+
+jobs:
+  update-sdk-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Mint baton-ci app token
+        id: ci-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.BATON_CI_CLIENT_ID }}
+          private-key: ${{ secrets.BATON_CI_SECRET_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          token: ${{ steps.ci-token.outputs.token }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Update hard-coded SDK version
+        run: make pkg/sdk/version.go
+
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          new_branch: main
+          default_author: github_actions
+          message: "Update SDK version to ${{ github.ref_name }}"
+          add: "pkg/sdk/version.go"

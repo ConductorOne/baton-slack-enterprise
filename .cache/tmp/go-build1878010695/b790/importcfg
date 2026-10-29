@@ -1,0 +1,12 @@
+# import config
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile encoding/json=/data/squire/cache/go/plaid-cache/blob/output/fc/fce6d6edf4fa7fbaf44ed26065c208faa908534a52879dc164fcd24e16078b5c
+packagefile errors=/data/squire/cache/go/plaid-cache/blob/output/03/03d168ac7afe2a3da838ee7fa6cb91db838c2231295a6fb2c05f3bc0ad2c3dab
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/conductorone/baton-sdk/pb/c1/connector/v2=/data/squire/cache/go/plaid-cache/blob/output/ca/ca98d717470be17404310aa598b93319aa9ab937a826731744842f85baa90cbf
+packagefile github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap=/data/squire/cache/go/plaid-cache/blob/output/77/7761a7fb16dae6ceaf43a21363c391f4f7d97808d4399a35848ad54f2c9610f7
+packagefile go.uber.org/zap=/data/squire/cache/go/plaid-cache/blob/output/3f/3f351dd67da9edb6b01c84d05e8a6594bbb6d9fd29745785c6e16226e88103d8
+packagefile google.golang.org/protobuf/encoding/protojson=/data/squire/cache/go/plaid-cache/blob/output/de/de204794e8d28f824509485a0a1573d4f414b236988aac560305834d0b9aa1cd
+packagefile google.golang.org/protobuf/types/known/timestamppb=/data/squire/cache/go/plaid-cache/blob/output/81/81a1542d0558820004db86776530974f245c57fb21f94ab3c68af5ed23da6454
+packagefile google.golang.org/protobuf/types/known/wrapperspb=/data/squire/cache/go/plaid-cache/blob/output/ef/ef4faefd5751f9315f0ca319d5e3cc1d759dc99a7d502a8bc5e33e855ec3f50e
+packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

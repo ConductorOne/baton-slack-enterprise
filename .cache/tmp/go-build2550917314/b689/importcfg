@@ -1,0 +1,24 @@
+# import config
+packagefile bufio=/data/squire/cache/go/plaid-cache/blob/output/28/282df5cbc17344b0258f4be260756f17e0c5fac6c80ed6501e8055d6a92e0da4
+packagefile bytes=/data/squire/cache/go/plaid-cache/blob/output/51/51568f9601924ce527df29442570ae5e3af77be409234193377561e91126ac6a
+packagefile cmp=/data/squire/cache/go/plaid-cache/blob/output/d1/d1820a2f7ceea8605c00a39a140851b862059a095611e87b6417c65c0154d403
+packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
+packagefile encoding/binary=/data/squire/cache/go/plaid-cache/blob/output/0a/0a2fe4470aad98e3e14586c1c99427010c273bcccacadf0645a06fb1ecb32c7f
+packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
+packagefile github.com/cockroachdb/errors=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b573/_pkg_.a
+packagefile github.com/cockroachdb/errors/oserror=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b638/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/base=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b640/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/internal/invariants=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b643/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/objstorage=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b670/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/objstorage/objstorageprovider/objiotracing=/data/squire/cache/go/plaid-cache/blob/output/27/270bb68ea960af93f2c7b0ee55a44f8cfa6629e10df234e3b7e1956c9792f800
+packagefile github.com/cockroachdb/pebble/v2/objstorage/objstorageprovider/remoteobjcat=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b692/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/objstorage/objstorageprovider/sharedcache=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b671/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/objstorage/remote=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b672/_pkg_.a
+packagefile github.com/cockroachdb/pebble/v2/vfs=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b646/_pkg_.a
+packagefile io=/data/squire/cache/go/plaid-cache/blob/output/fd/fdb3d8f7c5942e0ac41c565df8b4f29d8af5354cca3c237a550e10ec326367c6
+packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a
+packagefile runtime=/data/squire/cache/go/plaid-cache/blob/output/52/52ab39af02f3aaf633a15cbafb61d12594116940228a1d5934d0a5f3dfc681a8
+packagefile runtime/debug=/data/squire/cache/go/plaid-cache/blob/output/31/31c5bf00856c1a6b4644e4428ca31dae4bffe8699fb5acffebe47690dbe3d36d
+packagefile slices=/data/squire/cache/go/plaid-cache/blob/output/47/4785913ebabf44c318a2a46c54a2ff2aa0221066947d3c37c756c87472364351
+packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
+packagefile sync/atomic=/data/squire/cache/go/plaid-cache/blob/output/71/71dac6c308b2803025f15f7d59a637b23e8f1c210d0df2278f13e292a7026c3d
