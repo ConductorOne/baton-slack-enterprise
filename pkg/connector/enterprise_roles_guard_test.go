@@ -30,6 +30,8 @@ type guardServer struct {
 	requests []recordedRequest
 	// cannedError overrides the default {"ok":true} response body when set.
 	cannedError []byte
+	// cannedUserInfo overrides the default /api/users.info response when set.
+	cannedUserInfo []byte
 }
 
 func newGuardServer(t *testing.T) *guardServer {
@@ -46,16 +48,21 @@ func newGuardServer(t *testing.T) *guardServer {
 			form:   r.PostForm,
 			body:   body,
 		})
-		canned := g.cannedError
+		cannedErr := g.cannedError
+		cannedUser := g.cannedUserInfo
 		g.mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/users.info" {
+			if cannedUser != nil {
+				_, _ = w.Write(cannedUser)
+				return
+			}
 			_, _ = w.Write([]byte(`{"ok":true,"user":{"profile":{"team":"T123"}}}`))
 			return
 		}
-		if canned != nil {
-			_, _ = w.Write(canned)
+		if cannedErr != nil {
+			_, _ = w.Write(cannedErr)
 			return
 		}
 		_, _ = w.Write([]byte(`{"ok":true}`))
@@ -167,26 +174,68 @@ func TestEnterpriseRoleGrant_OrgRolesUseOrgLevelAPI(t *testing.T) {
 	}
 }
 
-// T3: revoking both org roles downgrades via admin.users.setRegular with the
-// org ID — never admin.roles.removeAssignments (AC 3, 6).
+// T3a/T3b: org-role revokes are per-arm (judge thread 4407347809). Revoking
+// organization_owner demotes via admin.users.setAdmin with the org ID — never
+// setRegular, which would strip BOTH org roles. Revoking organization_admin
+// from a non-owner downgrades via admin.users.setRegular with the org ID.
+// Neither path touches admin.roles.removeAssignments (AC 3, 6).
 func TestEnterpriseRoleRevoke_OrgRolesDowngradeToRegular(t *testing.T) {
 	ctx := context.Background()
-	for _, roleID := range []string{OrganizationAdminID, OrganizationOwnerID} {
-		t.Run(roleID, func(t *testing.T) {
+	for _, tc := range []struct {
+		roleID        string
+		wantPath      string
+		wantNoPath    string
+		wantUsersInfo bool
+	}{
+		{OrganizationOwnerID, "/api/admin.users.setAdmin", "/api/admin.users.setRegular", false},
+		{OrganizationAdminID, "/api/admin.users.setRegular", "/api/admin.users.setAdmin", true},
+	} {
+		t.Run(tc.roleID, func(t *testing.T) {
 			g := newGuardServer(t)
 			b := newGuardBuilder(t, g, guardTestOrgID)
 
-			_, err := b.Revoke(ctx, guardRevokeInput(roleID))
+			_, err := b.Revoke(ctx, guardRevokeInput(tc.roleID))
 			require.NoError(t, err)
 
 			paths := g.paths(t)
-			require.Contains(t, paths, "/api/admin.users.setRegular")
+			require.Contains(t, paths, tc.wantPath)
+			require.NotContains(t, paths, tc.wantNoPath)
 			require.NotContains(t, paths, "/api/admin.roles.removeAssignments")
+			if tc.wantUsersInfo {
+				require.Contains(t, paths, "/api/users.info")
+			} else {
+				require.NotContains(t, paths, "/api/users.info")
+			}
 			form := g.lastForm(t)
 			require.Equal(t, guardTestOrgID, form.Get("team_id"))
 			require.Equal(t, "U1", form.Get("user_id"))
 		})
 	}
+}
+
+// T3c: revoking organization_admin from a user who is STILL an owner is
+// refused fail-closed (FailedPrecondition, baton prefix) with ZERO downgrade
+// calls — setRegular would strip the owner's ownership too (judge thread
+// 4407347809).
+func TestEnterpriseRoleRevoke_AdminOnStillOwnerRefused(t *testing.T) {
+	ctx := context.Background()
+	g := newGuardServer(t)
+	g.mu.Lock()
+	g.cannedUserInfo = []byte(`{"ok":true,"user":{"id":"U1","profile":{"team":"T123"},"enterprise_user":{"is_owner":true,"is_admin":true}}}`)
+	g.mu.Unlock()
+	b := newGuardBuilder(t, g, guardTestOrgID)
+
+	ann, err := b.Revoke(ctx, guardRevokeInput(OrganizationAdminID))
+	require.Error(t, err)
+	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+	require.Contains(t, err.Error(), "baton-slack-enterprise:")
+	require.Contains(t, err.Error(), "organization_owner")
+	require.False(t, ann.Contains(&v2.GrantAlreadyRevoked{}))
+
+	paths := g.paths(t)
+	require.Contains(t, paths, "/api/users.info")
+	require.NotContains(t, paths, "/api/admin.users.setRegular")
+	require.NotContains(t, paths, "/api/admin.users.setAdmin")
 }
 
 // T4: organization_primary_owner grant and revoke are refused before any HTTP
@@ -266,19 +315,28 @@ func TestEnterpriseRoleGrant_IdempotentAlreadyExists(t *testing.T) {
 	}
 }
 
-// T7: idempotent revokes — already_regular and invalid_role_for_user both
-// yield GrantAlreadyRevoked (AC 7).
+// T7: idempotent revokes, per-arm (judge thread 4407347809). Owner-revoke arm
+// (setAdmin): already_admin means the user is not an owner, so the owner role
+// is already gone → GrantAlreadyRevoked. Admin-revoke arm (setRegular):
+// already_regular and invalid_role_for_user both yield GrantAlreadyRevoked.
 func TestEnterpriseRoleRevoke_IdempotentAlreadyRevoked(t *testing.T) {
 	ctx := context.Background()
-	for _, slackErr := range []string{"already_regular", "invalid_role_for_user"} {
-		t.Run(slackErr, func(t *testing.T) {
+	for _, tc := range []struct {
+		roleID   string
+		slackErr string
+	}{
+		{OrganizationOwnerID, "already_admin"},
+		{OrganizationAdminID, "already_regular"},
+		{OrganizationAdminID, "invalid_role_for_user"},
+	} {
+		t.Run(tc.roleID+"/"+tc.slackErr, func(t *testing.T) {
 			g := newGuardServer(t)
 			g.mu.Lock()
-			g.cannedError = []byte(`{"ok":false,"error":"` + slackErr + `"}`)
+			g.cannedError = []byte(`{"ok":false,"error":"` + tc.slackErr + `"}`)
 			g.mu.Unlock()
 			b := newGuardBuilder(t, g, guardTestOrgID)
 
-			ann, err := b.Revoke(ctx, guardRevokeInput(OrganizationAdminID))
+			ann, err := b.Revoke(ctx, guardRevokeInput(tc.roleID))
 			require.NoError(t, err)
 			require.True(t, ann.Contains(&v2.GrantAlreadyRevoked{}))
 		})

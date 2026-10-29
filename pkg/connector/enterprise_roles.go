@@ -391,10 +391,48 @@ func (o *enterpriseRoleType) Revoke(
 		}
 
 		// Order matters (GO-P-062/GO-A-018): WHERE (org, not the user's home team), WHO, WHAT (the role WORD, not the enterprise role ID).
+		//
+		// Revoke semantics are per-arm so a revoke strips only the requested
+		// org role: admin.users.setRegular clears BOTH org roles at once, so
+		// revoking organization_owner from an owner demotes them to admin
+		// (setAdmin) instead — revoking organization_admin from a user who is
+		// still an owner is refused fail-closed (the owner role must be
+		// revoked first) rather than quietly stripping ownership too.
 		orgID := o.enterpriseID                  // WHERE — the org, not the user's home team
 		userToSet := grant.Principal.Id.Resource // WHO
-		workspaceRoleWord := RegularRoleID       // WHAT — "" downgrades BOTH org roles to admin.users.setRegular (getWorkspaceUrlPathByRole's "" arm); never the org roleID
-		ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, workspaceRoleWord)
+		if roleID == OrganizationOwnerID {
+			// WHAT — demote owner → admin, revoking ONLY the owner role.
+			ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, AdminRoleID)
+			outputAnnotations.WithRateLimiting(ratelimitData)
+			if err != nil {
+				// already_admin means the user is not an owner, so the owner
+				// role is already gone.
+				if strings.Contains(err.Error(), "already_admin") {
+					outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+					return outputAnnotations, nil
+				}
+				return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to revoke enterprise role %s from user %s: %w", roleID, userID, err)
+			}
+
+			return outputAnnotations, nil
+		}
+
+		// organization_admin revoke: refuse while the user still holds ownership.
+		user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
+		outputAnnotations.WithRateLimiting(ratelimitData)
+		if err != nil {
+			return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user info for user %s before revoking enterprise role %s: %w", userID, roleID, err)
+		}
+		if user != nil && user.Enterprise.IsOwner {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.FailedPrecondition,
+				"baton-slack-enterprise: cannot revoke organization_admin from user who is still an organization owner; revoke organization_owner first",
+				fmt.Errorf("user %s still holds the organization owner role", userID),
+			)
+		}
+
+		// WHAT — "" downgrades the admin org role via admin.users.setRegular (getWorkspaceUrlPathByRole's "" arm); never the org roleID
+		ratelimitData, err = o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, RegularRoleID)
 		outputAnnotations.WithRateLimiting(ratelimitData)
 		if err != nil {
 			if strings.Contains(err.Error(), "already_regular") || strings.Contains(err.Error(), "invalid_role_for_user") {
