@@ -1,5 +1,0 @@
-# import config
-packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
-packagefile golang.org/x/sys/unix=/data/squire/cache/go/plaid-cache/blob/output/82/824fbe200ed7af17bcbf1a94fe57d0072efbc64aeef8d6644dbb77b7f885effa
-packagefile math/bits=/data/squire/cache/go/plaid-cache/blob/output/22/2289e9cb34a81c529e26bc41d8d740a2a1bfc225e7b497cd248fc913e942e783
-packagefile os=/data/squire/cache/go/plaid-cache/blob/output/df/df845c1653e4b87a30f720bee30c19eea53972c80dff65c7d0145efe4142407a

@@ -1,6 +1,0 @@
-# import config
-packagefile golang.org/x/net/idna=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b303/_pkg_.a
-packagefile net=/data/squire/cache/go/plaid-cache/blob/output/58/5839eb060d2840a2cc6d260887716229f5e33072ed108b40e361dbe56b4208c3
-packagefile net/textproto=/data/squire/cache/go/plaid-cache/blob/output/f5/f5107618afcd43834c23a12027aecd582a1f427968cae6cc93f41fec38c6dae6
-packagefile strings=/data/squire/cache/go/plaid-cache/blob/output/c3/c33daf0ecd9a97028ec0ff9791a470857a4bedab573408da1317820de8c7c6b2
-packagefile unicode/utf8=/data/squire/cache/go/plaid-cache/blob/output/b3/b34b916c459ea3d0350f70ed8d1f99de233d64aecedef18e3e35850f7ea3117f

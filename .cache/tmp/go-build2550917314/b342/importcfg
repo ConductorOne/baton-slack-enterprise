@@ -1,4 +1,0 @@
-# import config
-packagefile crypto/subtle=/data/squire/cache/go/plaid-cache/blob/output/20/20c85ce2f3039950bba8c4e9c759fdae8210f4822ecef89565b2128ad2eef1fb
-packagefile encoding/binary=/data/squire/cache/go/plaid-cache/blob/output/0a/0a2fe4470aad98e3e14586c1c99427010c273bcccacadf0645a06fb1ecb32c7f
-packagefile math/bits=/data/squire/cache/go/plaid-cache/blob/output/22/2289e9cb34a81c529e26bc41d8d740a2a1bfc225e7b497cd248fc913e942e783

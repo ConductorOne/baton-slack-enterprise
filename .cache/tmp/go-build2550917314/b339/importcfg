@@ -1,8 +1,0 @@
-# import config
-packagefile crypto/cipher=/data/squire/cache/go/plaid-cache/blob/output/60/6033708411b5f7f9bff113377e7fdd3bb167dc934ad60a8dd303df78dbf73c3e
-packagefile crypto/fips140=/data/squire/cache/go/plaid-cache/blob/output/60/60ab07fd4232be9c868f84ca91a670062512c9cfd6e6799d75a8433b0d15f38b
-packagefile encoding/binary=/data/squire/cache/go/plaid-cache/blob/output/0a/0a2fe4470aad98e3e14586c1c99427010c273bcccacadf0645a06fb1ecb32c7f
-packagefile errors=/data/squire/cache/go/plaid-cache/blob/output/03/03d168ac7afe2a3da838ee7fa6cb91db838c2231295a6fb2c05f3bc0ad2c3dab
-packagefile golang.org/x/crypto/chacha20=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b340/_pkg_.a
-packagefile golang.org/x/crypto/internal/alias=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b341/_pkg_.a
-packagefile golang.org/x/crypto/internal/poly1305=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b342/_pkg_.a

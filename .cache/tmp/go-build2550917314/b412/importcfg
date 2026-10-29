@@ -1,8 +1,0 @@
-# import config
-packagefile container/heap=/data/squire/cache/go/plaid-cache/blob/output/d4/d4ac0b6f9a4d95cfc218643b02cdd245771331189cb78b947e884f3651ba7c1b
-packagefile container/list=/data/squire/cache/go/plaid-cache/blob/output/65/652713fcb2f301973e77c9e1817684d642bab3b0d01aaa07b0c6070191e1c17c
-packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
-packagefile fmt=/data/squire/cache/go/plaid-cache/blob/output/82/824bc641646cc6c7ef2e657095087ea833d81681a3db13a38c6a8bbba95efece
-packagefile golang.org/x/sync/singleflight=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b414/_pkg_.a
-packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
-packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

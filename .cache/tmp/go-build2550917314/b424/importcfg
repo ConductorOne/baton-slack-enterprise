@@ -1,6 +1,0 @@
-# import config
-packagefile hash/maphash=/data/squire/cache/go/plaid-cache/blob/output/9b/9bc44612c5ce14c79f413941d24918a9902377553437eabb8d5cfd13ecb1e91c
-packagefile math=/data/squire/cache/go/plaid-cache/blob/output/43/43dc63cf2c06d304dad5ab9f33e1bff687bd395b2c5257d734b34bcbe3848129
-packagefile math/rand/v2=/data/squire/cache/go/plaid-cache/blob/output/57/5780f7ebd28098ee21f168b1ea502061568f30d44beb74d0da497926d1c92d0a
-packagefile runtime=/data/squire/cache/go/plaid-cache/blob/output/52/52ab39af02f3aaf633a15cbafb61d12594116940228a1d5934d0a5f3dfc681a8
-packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

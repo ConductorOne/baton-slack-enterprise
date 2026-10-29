@@ -1,9 +1,0 @@
-# import config
-packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
-packagefile github.com/conductorone/baton-sdk/pkg/connectorstore=/data/squire/cache/go/plaid-cache/blob/output/5a/5a51ea7f3dc43d089b61f22221946f7bb509fb63b8ab6cdadf34a12bf0dccb73
-packagefile github.com/conductorone/baton-sdk/pkg/metrics=/data/squire/cache/go/plaid-cache/blob/output/2b/2bdeaa29884301bf205c4d37551f72f7a2d259aebdab1ce28b7c565022a8ca9e
-packagefile github.com/conductorone/baton-sdk/pkg/sync/expand=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build1878010695/b769/_pkg_.a
-packagefile github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap=/data/squire/cache/go/plaid-cache/blob/output/77/7761a7fb16dae6ceaf43a21363c391f4f7d97808d4399a35848ad54f2c9610f7
-packagefile go.uber.org/zap=/data/squire/cache/go/plaid-cache/blob/output/3f/3f351dd67da9edb6b01c84d05e8a6594bbb6d9fd29745785c6e16226e88103d8
-packagefile sync=/data/squire/cache/go/plaid-cache/blob/output/46/46f17681e96408b805fc0a6ad4bb9b958a3ac7ae53d300623579ef72b6bdf31f
-packagefile time=/data/squire/cache/go/plaid-cache/blob/output/33/3360542b50119994604f81a0293001a1f26ae7ea726639eb5d47ffab3ab4f00b

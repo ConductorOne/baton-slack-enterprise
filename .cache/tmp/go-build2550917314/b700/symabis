@@ -1,9 +1,0 @@
-def github.com/golang/snappy.decode ABI0
-ref runtime.memmove ABI0
-def github.com/golang/snappy.emitLiteral ABI0
-ref runtime.memmove ABI0
-def github.com/golang/snappy.emitCopy ABI0
-def github.com/golang/snappy.extendMatch ABI0
-def github.com/golang/snappy.encodeBlock ABI0
-ref runtime.memmove ABI0
-ref github.com/golang/snappy.emitLiteral ABI0

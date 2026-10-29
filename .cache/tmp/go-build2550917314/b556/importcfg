@@ -1,7 +1,0 @@
-# import config
-packagefile context=/data/squire/cache/go/plaid-cache/blob/output/af/af20b678c63158698a004a7356fe587e1890e110d6ab3d26fa116e38816e6e65
-packagefile github.com/conductorone/baton-sdk/pb/c1/connector/v2=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b134/_pkg_.a
-packagefile github.com/conductorone/baton-sdk/pb/c1/reader/v2=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b555/_pkg_.a
-packagefile github.com/conductorone/baton-sdk/pb/c1/reader/v3=/data/squire/src/worktrees/CXH-2390-cf-2610289sdi/CXH-2390-cf-2610289sdi.12.1/.cache/tmp/go-build2550917314/b557/_pkg_.a
-packagefile io=/data/squire/cache/go/plaid-cache/blob/output/fd/fdb3d8f7c5942e0ac41c565df8b4f29d8af5354cca3c237a550e10ec326367c6
-packagefile iter=/data/squire/cache/go/plaid-cache/blob/output/f6/f659adf74ee44b5737c3765bbb94536886cc4759f6609010476de146451a92a2

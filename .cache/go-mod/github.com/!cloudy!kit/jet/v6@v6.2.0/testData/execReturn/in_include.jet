@@ -1,3 +1,0 @@
-bla bla
-{{ include "./included.jet" }}
-foo
