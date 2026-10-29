@@ -2,7 +2,9 @@ package connector
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -10,8 +12,10 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	resources "github.com/conductorone/baton-sdk/pkg/types/resource"
 
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/conductorone/baton-slack-enterprise/pkg"
 	enterprise "github.com/conductorone/baton-slack-enterprise/pkg/connector/client"
+	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -254,6 +258,25 @@ func (o *enterpriseRoleType) Grants(
 	return rv, &resources.SyncOpResults{NextPageToken: pageToken, Annotations: outputAnnotations}, nil
 }
 
+// orgRoleToWorkspaceRole maps an organization role ID to the workspace role
+// word accepted by admin.users.setAdmin/setOwner. It is exhaustive and fails
+// closed: only organization_admin and organization_owner map to a word, and
+// any other role ID is an error. Callers must not use it to synthesize
+// RegularRoleID ("") — the revoke path passes RegularRoleID (admin.users.
+// setRegular) explicitly per-arm (only for organization_admin), because
+// setRegular strips BOTH org roles at once and would silently demote an
+// owner if misused here.
+func orgRoleToWorkspaceRole(roleID string) (string, error) {
+	switch roleID {
+	case OrganizationAdminID:
+		return AdminRoleID, nil
+	case OrganizationOwnerID:
+		return OwnerRoleID, nil
+	default:
+		return "", fmt.Errorf("unsupported organization role %q; expected %q or %q", roleID, OrganizationAdminID, OrganizationOwnerID)
+	}
+}
+
 // getTeamIDForUser retrieves the team ID for a user by calling the Slack API directly.
 func (o *enterpriseRoleType) getTeamIDForUser(ctx context.Context, userID string) (string, *v2.RateLimitDescription, error) {
 	user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
@@ -280,6 +303,74 @@ func (o *enterpriseRoleType) Grant(
 	userID := principal.Id.Resource
 
 	outputAnnotations := annotations.New()
+
+	if _, ok := organizationRoles[roleID]; ok {
+		// Organization-level roles are granted via the org-level admin API
+		// (admin.users.setAdmin/setOwner), not via admin.roles.addAssignments.
+		// Guard order is locked: the empty-enterpriseID guard precedes the
+		// primary-owner refusal, and both precede any HTTP call.
+		if o.enterpriseID == "" {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.InvalidArgument,
+				"baton-slack-enterprise: enterprise ID is required to grant or revoke organization-level roles",
+				errors.New("connector was constructed without an enterprise ID"),
+			)
+		}
+
+		if roleID == OrganizationPrimaryOwnerID {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.PermissionDenied,
+				"baton-slack-enterprise: organization_primary_owner cannot be granted or revoked via the Slack API",
+				errors.New("slack disallows modifying the primary owner"),
+			)
+		}
+
+		// Order matters (GO-P-062/GO-A-018): WHERE (org, not the user's home team), WHO, WHAT (the role WORD, not the enterprise role ID).
+		orgID := o.enterpriseID                                  // WHERE — the org, not the user's home team
+		userToSet := principal.Id.Resource                       // WHO
+		workspaceRoleWord, err := orgRoleToWorkspaceRole(roleID) // WHAT — "admin"/"owner" — never organization_admin
+		if err != nil {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.InvalidArgument,
+				"baton-slack-enterprise: unsupported organization role for grant",
+				fmt.Errorf("failed to map organization role %s to a workspace role word: %w", roleID, err),
+			)
+		}
+		// Ownership precheck (deep-review F2): the read path emits BOTH org
+		// grants for every owner, so granting an org role to a current owner
+		// is realistic already-in-state. A user who holds ownership also holds
+		// the admin role (Slack org owners are admins), so granting either org
+		// role to a current owner would demote them (setAdmin) or rely on
+		// undocumented no-op behavior (setOwner). Report GrantAlreadyExists
+		// and skip the write entirely.
+		if roleID == OrganizationAdminID || roleID == OrganizationOwnerID {
+			user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
+			outputAnnotations.WithRateLimiting(ratelimitData)
+			if err != nil {
+				return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user info for user %s before granting enterprise role %s: %w", userID, roleID, err)
+			}
+			if user != nil && user.Enterprise.IsOwner {
+				outputAnnotations.Append(&v2.GrantAlreadyExists{})
+				return outputAnnotations, nil
+			}
+		}
+
+		ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, workspaceRoleWord)
+		outputAnnotations.WithRateLimiting(ratelimitData)
+		if err != nil {
+			if roleID == OrganizationAdminID && strings.Contains(err.Error(), "already_admin") {
+				outputAnnotations.Append(&v2.GrantAlreadyExists{})
+				return outputAnnotations, nil
+			}
+			if roleID == OrganizationOwnerID && strings.Contains(err.Error(), "already_owner") {
+				outputAnnotations.Append(&v2.GrantAlreadyExists{})
+				return outputAnnotations, nil
+			}
+			return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to set enterprise role %s for user %s: %w", roleID, userID, err)
+		}
+
+		return outputAnnotations, nil
+	}
 
 	// Get team ID by calling the API directly
 	teamID, ratelimitData, err := o.getTeamIDForUser(ctx, userID)
@@ -308,6 +399,100 @@ func (o *enterpriseRoleType) Revoke(
 	userID := grant.Principal.Id.Resource
 
 	outputAnnotations := annotations.New()
+
+	if _, ok := organizationRoles[roleID]; ok {
+		// Organization-level roles are revoked via the org-level admin API.
+		// Guard order is locked: the empty-enterpriseID guard precedes the
+		// primary-owner refusal, and both precede any HTTP call.
+		if o.enterpriseID == "" {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.InvalidArgument,
+				"baton-slack-enterprise: enterprise ID is required to grant or revoke organization-level roles",
+				errors.New("connector was constructed without an enterprise ID"),
+			)
+		}
+
+		if roleID == OrganizationPrimaryOwnerID {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.PermissionDenied,
+				"baton-slack-enterprise: organization_primary_owner cannot be granted or revoked via the Slack API",
+				errors.New("slack disallows modifying the primary owner"),
+			)
+		}
+
+		// Order matters (GO-P-062/GO-A-018): WHERE (org, not the user's home team), WHO, WHAT (the role WORD, not the enterprise role ID).
+		//
+		// Revoke semantics are per-arm so a revoke strips only the requested
+		// org role: admin.users.setRegular clears BOTH org roles at once, so
+		// revoking organization_owner from an owner demotes them to admin
+		// (setAdmin) instead — revoking organization_admin from a user who is
+		// still an owner is refused fail-closed (the owner role must be
+		// revoked first) rather than quietly stripping ownership too.
+		orgID := o.enterpriseID                  // WHERE — the org, not the user's home team
+		userToSet := grant.Principal.Id.Resource // WHO
+		if roleID == OrganizationOwnerID {
+			// WHAT — demote owner → admin, revoking ONLY the owner role.
+			// Check ownership first: a user who is not an owner has no owner
+			// role to revoke, and calling setAdmin on them would PROMOTE them
+			// to org admin (e.g. after an out-of-band demotion).
+			user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
+			outputAnnotations.WithRateLimiting(ratelimitData)
+			if err != nil {
+				return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user info for user %s before revoking enterprise role %s: %w", userID, roleID, err)
+			}
+			if user == nil || !user.Enterprise.IsOwner {
+				outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+				return outputAnnotations, nil
+			}
+
+			ratelimitData, err = o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, AdminRoleID)
+			outputAnnotations.WithRateLimiting(ratelimitData)
+			if err != nil {
+				// already_admin means the user is not an owner, so the owner
+				// role is already gone.
+				if strings.Contains(err.Error(), "already_admin") {
+					outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+					return outputAnnotations, nil
+				}
+				return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to revoke enterprise role %s from user %s: %w", roleID, userID, err)
+			}
+
+			return outputAnnotations, nil
+		}
+
+		// organization_admin revoke: refuse while the user still holds ownership.
+		user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
+		outputAnnotations.WithRateLimiting(ratelimitData)
+		if err != nil {
+			return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user info for user %s before revoking enterprise role %s: %w", userID, roleID, err)
+		}
+		if user != nil && user.Enterprise.IsOwner {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.FailedPrecondition,
+				"baton-slack-enterprise: cannot revoke organization_admin from user who is still an organization owner; revoke organization_owner first",
+				fmt.Errorf("user %s still holds the organization owner role", userID),
+			)
+		}
+
+		// WHAT — "" downgrades the admin org role via admin.users.setRegular (getWorkspaceUrlPathByRole's "" arm); never the org roleID
+		ratelimitData, err = o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, RegularRoleID)
+		outputAnnotations.WithRateLimiting(ratelimitData)
+		if err != nil {
+			// already_regular means the user is already regular, so there is
+			// no admin role left to revoke. invalid_role_for_user (Slack:
+			// "the user's current role does not allow this change") is a
+			// REFUSAL, not an already-in-state signal — it fails closed
+			// through the wrapped-error return below (deep-review F1 /
+			// BUGBOT §12 fail-closed semantics).
+			if strings.Contains(err.Error(), "already_regular") {
+				outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+				return outputAnnotations, nil
+			}
+			return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to revoke enterprise role %s from user %s: %w", roleID, userID, err)
+		}
+
+		return outputAnnotations, nil
+	}
 
 	// Get team ID by calling the API directly
 	teamID, ratelimitData, err := o.getTeamIDForUser(ctx, userID)
