@@ -402,6 +402,19 @@ func (o *enterpriseRoleType) Revoke(
 		userToSet := grant.Principal.Id.Resource // WHO
 		if roleID == OrganizationOwnerID {
 			// WHAT — demote owner → admin, revoking ONLY the owner role.
+			// Check ownership first: a user who is not an owner has no owner
+			// role to revoke, and calling setAdmin on them would PROMOTE them
+			// to org admin (e.g. after an out-of-band demotion).
+			user, ratelimitData, err := o.enterpriseClient.GetUserInfo(ctx, userID)
+			outputAnnotations.WithRateLimiting(ratelimitData)
+			if err != nil {
+				return outputAnnotations, fmt.Errorf("baton-slack-enterprise: failed to get user info for user %s before revoking enterprise role %s: %w", userID, roleID, err)
+			}
+			if user == nil || !user.Enterprise.IsOwner {
+				outputAnnotations.Append(&v2.GrantAlreadyRevoked{})
+				return outputAnnotations, nil
+			}
+
 			ratelimitData, err := o.enterpriseClient.SetWorkspaceRole(ctx, orgID, userToSet, AdminRoleID)
 			outputAnnotations.WithRateLimiting(ratelimitData)
 			if err != nil {

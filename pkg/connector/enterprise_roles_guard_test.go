@@ -187,11 +187,17 @@ func TestEnterpriseRoleRevoke_OrgRolesDowngradeToRegular(t *testing.T) {
 		wantNoPath    string
 		wantUsersInfo bool
 	}{
-		{OrganizationOwnerID, "/api/admin.users.setAdmin", "/api/admin.users.setRegular", false},
+		{OrganizationOwnerID, "/api/admin.users.setAdmin", "/api/admin.users.setRegular", true},
 		{OrganizationAdminID, "/api/admin.users.setRegular", "/api/admin.users.setAdmin", true},
 	} {
 		t.Run(tc.roleID, func(t *testing.T) {
 			g := newGuardServer(t)
+			if tc.roleID == OrganizationOwnerID {
+				// owner-revoke arm requires a real owner to reach setAdmin.
+				g.mu.Lock()
+				g.cannedUserInfo = []byte(`{"ok":true,"user":{"id":"U1","profile":{"team":"T123"},"enterprise_user":{"is_owner":true}}}`)
+				g.mu.Unlock()
+			}
 			b := newGuardBuilder(t, g, guardTestOrgID)
 
 			_, err := b.Revoke(ctx, guardRevokeInput(tc.roleID))
@@ -331,6 +337,12 @@ func TestEnterpriseRoleRevoke_IdempotentAlreadyRevoked(t *testing.T) {
 	} {
 		t.Run(tc.roleID+"/"+tc.slackErr, func(t *testing.T) {
 			g := newGuardServer(t)
+			if tc.roleID == OrganizationOwnerID {
+				// the owner-revoke arm pre-checks ownership before setAdmin.
+				g.mu.Lock()
+				g.cannedUserInfo = []byte(`{"ok":true,"user":{"id":"U1","profile":{"team":"T123"},"enterprise_user":{"is_owner":true}}}`)
+				g.mu.Unlock()
+			}
 			g.mu.Lock()
 			g.cannedError = []byte(`{"ok":false,"error":"` + tc.slackErr + `"}`)
 			g.mu.Unlock()
@@ -341,6 +353,25 @@ func TestEnterpriseRoleRevoke_IdempotentAlreadyRevoked(t *testing.T) {
 			require.True(t, ann.Contains(&v2.GrantAlreadyRevoked{}))
 		})
 	}
+}
+
+// T7b: revoking organization_owner from a user who is NOT an owner (e.g.
+// demoted outside C1) returns GrantAlreadyRevoked with ZERO write calls —
+// setAdmin would promote them to org admin (judge thread 4407362910).
+func TestEnterpriseRoleRevoke_OwnerOnNonOwnerAlreadyRevoked(t *testing.T) {
+	ctx := context.Background()
+	g := newGuardServer(t)
+	// default canned /api/users.info has no enterprise_user → not an owner.
+	b := newGuardBuilder(t, g, guardTestOrgID)
+
+	ann, err := b.Revoke(ctx, guardRevokeInput(OrganizationOwnerID))
+	require.NoError(t, err)
+	require.True(t, ann.Contains(&v2.GrantAlreadyRevoked{}))
+
+	paths := g.paths(t)
+	require.Contains(t, paths, "/api/users.info")
+	require.NotContains(t, paths, "/api/admin.users.setAdmin")
+	require.NotContains(t, paths, "/api/admin.users.setRegular")
 }
 
 // T8: an empty enterprise ID is rejected inside the org arms before any HTTP
