@@ -259,17 +259,21 @@ func (o *enterpriseRoleType) Grants(
 }
 
 // orgRoleToWorkspaceRole maps an organization role ID to the workspace role
-// word accepted by admin.users.setAdmin/setOwner. Note that "" (RegularRoleID)
-// resolves to admin.users.setRegular via getWorkspaceUrlPathByRole; revoke
-// callers pass RegularRoleID explicitly to downgrade either org role.
-func orgRoleToWorkspaceRole(roleID string) string {
+// word accepted by admin.users.setAdmin/setOwner. It is exhaustive and fails
+// closed: only organization_admin and organization_owner map to a word, and
+// any other role ID is an error. Callers must not use it to synthesize
+// RegularRoleID ("") — the revoke path passes RegularRoleID (admin.users.
+// setRegular) explicitly per-arm (only for organization_admin), because
+// setRegular strips BOTH org roles at once and would silently demote an
+// owner if misused here.
+func orgRoleToWorkspaceRole(roleID string) (string, error) {
 	switch roleID {
 	case OrganizationAdminID:
-		return AdminRoleID
+		return AdminRoleID, nil
 	case OrganizationOwnerID:
-		return OwnerRoleID
+		return OwnerRoleID, nil
 	default:
-		return RegularRoleID
+		return "", fmt.Errorf("unsupported organization role %q; expected %q or %q", roleID, OrganizationAdminID, OrganizationOwnerID)
 	}
 }
 
@@ -322,9 +326,16 @@ func (o *enterpriseRoleType) Grant(
 		}
 
 		// Order matters (GO-P-062/GO-A-018): WHERE (org, not the user's home team), WHO, WHAT (the role WORD, not the enterprise role ID).
-		orgID := o.enterpriseID                             // WHERE — the org, not the user's home team
-		userToSet := principal.Id.Resource                  // WHO
-		workspaceRoleWord := orgRoleToWorkspaceRole(roleID) // WHAT — "admin"/"owner" — never organization_admin
+		orgID := o.enterpriseID                                  // WHERE — the org, not the user's home team
+		userToSet := principal.Id.Resource                       // WHO
+		workspaceRoleWord, err := orgRoleToWorkspaceRole(roleID) // WHAT — "admin"/"owner" — never organization_admin
+		if err != nil {
+			return outputAnnotations, uhttp.WrapErrors(
+				codes.InvalidArgument,
+				"baton-slack-enterprise: unsupported organization role for grant",
+				fmt.Errorf("failed to map organization role %s to a workspace role word: %w", roleID, err),
+			)
+		}
 		// Ownership precheck (deep-review F2): the read path emits BOTH org
 		// grants for every owner, so granting an org role to a current owner
 		// is realistic already-in-state. A user who holds ownership also holds
