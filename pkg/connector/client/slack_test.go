@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,12 +15,11 @@ const (
 	fakeUser = "xoxp-user"
 )
 
-// The user token only returns workspaces its user belongs to, so discovery must use the bot token.
 func TestGetAuthTeamsList_UsesBotToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, UrlPathAuthTeamsList, r.URL.Path)
-		require.NoError(t, r.ParseForm())
-		require.Equal(t, "next-page", r.PostForm.Get("cursor"))
+		assert.Equal(t, UrlPathAuthTeamsList, r.URL.Path)
+		assert.NoError(t, r.ParseForm())
+		assert.Equal(t, "next-page", r.PostForm.Get("cursor"))
 
 		w.Header().Set("Content-Type", "application/json")
 		if r.Header.Get("Authorization") != "Bearer "+fakeBot {
