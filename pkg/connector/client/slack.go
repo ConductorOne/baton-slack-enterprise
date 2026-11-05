@@ -422,12 +422,13 @@ func (c *Client) GetAuthTeamsList(
 		Pagination
 	}
 
+	// The user token only lists workspaces its user belongs to; the bot token lists every workspace the app is installed on.
 	ratelimitData, err := c.post(
 		ctx,
 		UrlPathAuthTeamsList,
 		&response,
 		values,
-		false,
+		true,
 	)
 	if err != nil {
 		return nil, "", ratelimitData, err
