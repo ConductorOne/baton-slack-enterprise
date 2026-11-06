@@ -40,13 +40,15 @@ For provisioning you will need this scope.
 Other difference is in the way the application is installed, on enterprise grid 
 app should be installed on the Organization level and on all the Workspaces from 
 which you want to sync the resources. The installation has to be done by Admin 
-or Owner of an Enterprise Grid organization. Workspaces are discovered with the
-Bot User OAuth Token, so every workspace the app is installed on syncs, including
-ones the user behind the User OAuth Token isn't a member of. More info with an example is 
+or Owner of an Enterprise Grid organization. More info with an example is 
 available in the [Slack API Docs](https://api.slack.com/methods/admin.teams.list#markdown).
 To work with Enterprise Grid APIs use User OAuth Token passed as 
 `--enterprise-token` along with the Bot User OAuth Token passed via `--token` flag.
 To work with GovSlack instances use `--gov-env` flag along with the `--enterprise-token`.
+
+Workspaces are discovered with the Bot User OAuth Token, so every workspace the
+app is installed on syncs, including ones the user behind the User OAuth Token
+isn't a member of.
 
 ## brew
 

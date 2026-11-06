@@ -422,7 +422,7 @@ func (c *Client) GetAuthTeamsList(
 		Pagination
 	}
 
-	// The user token only lists workspaces its user belongs to; the bot token lists every workspace the app is installed on.
+	// Undocumented by Slack: the user token only lists workspaces its user is in.
 	ratelimitData, err := c.post(
 		ctx,
 		UrlPathAuthTeamsList,

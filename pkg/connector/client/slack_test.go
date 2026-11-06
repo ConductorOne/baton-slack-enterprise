@@ -20,12 +20,9 @@ func TestGetAuthTeamsList_UsesBotToken(t *testing.T) {
 		assert.Equal(t, UrlPathAuthTeamsList, r.URL.Path)
 		assert.NoError(t, r.ParseForm())
 		assert.Equal(t, "next-page", r.PostForm.Get("cursor"))
+		assert.Equal(t, "Bearer "+fakeBot, r.Header.Get("Authorization"))
 
 		w.Header().Set("Content-Type", "application/json")
-		if r.Header.Get("Authorization") != "Bearer "+fakeBot {
-			_, _ = w.Write([]byte(`{"ok":true,"teams":[{"id":"T1","name":"Member Workspace"}]}`))
-			return
-		}
 		_, _ = w.Write([]byte(`{"ok":true,"teams":[{"id":"T1","name":"Member Workspace"},{"id":"T2","name":"Other Workspace"}],"response_metadata":{"next_cursor":"cursor-2"}}`))
 	}))
 	defer server.Close()
