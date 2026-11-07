@@ -422,12 +422,13 @@ func (c *Client) GetAuthTeamsList(
 		Pagination
 	}
 
+	// Undocumented by Slack: the user token only lists workspaces its user is in.
 	ratelimitData, err := c.post(
 		ctx,
 		UrlPathAuthTeamsList,
 		&response,
 		values,
-		false,
+		true,
 	)
 	if err != nil {
 		return nil, "", ratelimitData, err

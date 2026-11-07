@@ -46,6 +46,10 @@ To work with Enterprise Grid APIs use User OAuth Token passed as
 `--enterprise-token` along with the Bot User OAuth Token passed via `--token` flag.
 To work with GovSlack instances use `--gov-env` flag along with the `--enterprise-token`.
 
+Workspaces are discovered with the Bot User OAuth Token, so every workspace the
+app is installed on syncs, including ones the user behind the User OAuth Token
+isn't a member of.
+
 ## brew
 
 ```
